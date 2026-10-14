@@ -8,7 +8,7 @@
 SONAR_TOKEN="squ_977c62dcdba7881a49a1438a854f61fc2e434d0d"
 
 # 2. Inventa un nombre para tu proyecto (sin espacios) o usa el nombre de tu taller
-PROJECT_KEY="tallerNETSonarDemo"
+PROJECT_KEY="SolarUY"
 
 # =========================================================================
 # NO MODIFICAR ABAJO DE ESTA LÍNEA

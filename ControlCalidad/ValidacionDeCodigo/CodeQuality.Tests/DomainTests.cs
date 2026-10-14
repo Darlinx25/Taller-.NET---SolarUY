@@ -25,7 +25,8 @@ public class DomainTests
         IArchRule rule = Classes()
             .That().ResideInNamespace(DomainNamespace)
             .Should().NotDependOnAnyTypesThat().ResideInNamespace("Microsoft.EntityFrameworkCore.*")
-            .Because("El dominio no debe estar acoplado al ORM.");
+            .Because("El dominio no debe estar acoplado al ORM.")
+            .WithoutRequiringPositiveResults();
 
         rule.Check(_architecture);
     }

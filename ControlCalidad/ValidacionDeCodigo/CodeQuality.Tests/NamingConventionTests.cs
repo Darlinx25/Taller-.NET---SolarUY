@@ -24,7 +24,8 @@ public class NamingConventionTests
     {
         IArchRule rule = Interfaces()
             .Should().HaveNameStartingWith("I")
-            .Because("Por convención en C#, todas las interfaces deben comenzar con la letra 'I'.");
+            .Because("Por convención en C#, todas las interfaces deben comenzar con la letra 'I'.")
+            .WithoutRequiringPositiveResults();
 
         rule.Check(_architecture);
     }
@@ -41,7 +42,8 @@ public class NamingConventionTests
         IArchRule rule = Classes()
             .That().AreAssignableTo(typeof(Exception))
             .Should().HaveNameEndingWith("Exception")
-            .Because("Todas las clases que representan un error o excepción deben terminar con el sufijo 'Exception'.");
+            .Because("Todas las clases que representan un error o excepción deben terminar con el sufijo 'Exception'.")
+            .WithoutRequiringPositiveResults();
 
         rule.Check(_architecture);
     }

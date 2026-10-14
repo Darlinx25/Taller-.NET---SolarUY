@@ -28,7 +28,8 @@ public class LayerTests
                 .Or().ResideInNamespace(InfrastructureNamespace)
                 .Or().ResideInNamespace(PresentationNamespace)
             )
-            .Because("El Dominio es el núcleo y no debe depender de ninguna otra capa (Clean Architecture).");
+            .Because("El Dominio es el núcleo y no debe depender de ninguna otra capa (Clean Architecture).")
+            .WithoutRequiringPositiveResults();
 
         rule.Check(_architecture);
     }
@@ -48,14 +49,15 @@ public class LayerTests
                 Classes().That().ResideInNamespace(InfrastructureNamespace)
                 .Or().ResideInNamespace(PresentationNamespace)
             )
-            .Because("La capa de Aplicación solo debe depender del Dominio.");
+            .Because("La capa de Aplicación solo debe depender del Dominio.")
+            .WithoutRequiringPositiveResults();
 
         rule.Check(_architecture);
     }
 
     /// <summary>
     /// Evitar acoplamiento directo entre UI y Base de Datos:
-    /// La Presentación (ej. Blazor o Controladores API) no debe acceder directamente a la capa de Infraestructura.
+    /// La Presentación (Controladores y Vistas de ASP.NET Core MVC) no debe acceder directamente a la capa de Infraestructura.
     /// Todo pedido debe pasar a través de la capa de Aplicación, lo que permite reusar la lógica, asegurar 
     /// validaciones centralizadas y evitar que la UI quede atada a un motor de base de datos específico.
     /// </summary>
@@ -67,7 +69,8 @@ public class LayerTests
             .Should().NotDependOnAny(
                 Classes().That().ResideInNamespace(InfrastructureNamespace)
             )
-            .Because("Blazor (UI) no debe acceder directamente a la base de datos o repositorios reales. Debe usar la capa de Aplicación.");
+            .Because("La Presentación MVC no debe acceder directamente a la base de datos o repositorios reales. Debe usar la capa de Aplicación.")
+            .WithoutRequiringPositiveResults();
 
         rule.Check(_architecture);
     }

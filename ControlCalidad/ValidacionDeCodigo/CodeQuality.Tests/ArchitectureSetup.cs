@@ -6,31 +6,34 @@ namespace CodeQuality.Tests;
 public static class ArchitectureSetup
 {
     // =========================================================================
-    // PASO PARA EL ALUMNO: ¿CÓMO CONECTAR TUS PROYECTOS A ESTOS TESTS?
+    // ¿CÓMO SE CONECTAN LOS PROYECTOS A ESTOS TESTS?
     // =========================================================================
-    // ArchUnitNET no lee carpetas, lee proyectos compilados (.dll).
-    // Solo necesitas agregar UNA LÍNEA por cada proyecto (.csproj) que tengas en tu solución.
-    // 
-    // Para que estos tests puedan analizar tu código, necesitas:
-    // 1. Agregar una "Referencia de Proyecto" desde este proyecto de tests hacia tus proyectos reales.
-    // 2. Descomentar las líneas de abajo y reemplazar los nombres por CUALQUIER clase que exista dentro de tu proyecto.
-    // Al pasarle el tipo (typeof) de una clase, le estamos entregando ese proyecto entero a ArchUnitNET.
+    // ArchUnitNET no lee carpetas: lee ensamblados compilados (.dll).
+    // SolarUY es un monolito: hay UN solo proyecto (SolarUY.csproj) que contiene
+    // TODAS las capas como carpetas + namespaces (Domain, Application,
+    // Infrastructure y la Presentación MVC en Controllers/Models/Hubs).
+    //
+    // Por eso cargamos un único ensamblado: el de SolarUY. Esa única referencia
+    // ya nos entrega las cuatro capas, porque las capas son namespaces dentro
+    // del mismo ensamblado.
+    //
+    // Para que el ensamblado esté disponible, este proyecto de tests incluye una
+    // "Referencia de Proyecto" hacia SolarUY.csproj (ver CodeQuality.Tests.csproj).
+    // Al pasarle el tipo (typeof) de una clase cualquiera de SolarUY, ArchUnitNET
+    // recibe el ensamblado entero y puede analizar todas sus capas.
 
     public static readonly Architecture Architecture = new ArchLoader()
         .LoadAssemblies(
-            // BORRA ESTA LÍNEA DE ABAJO cuando hayas agregado las tuyas:
-            typeof(object).Assembly
-
-        // DESCOMENTA Y MODIFICA 
-        // typeof (una clase cualqueiera de tu proyecto)
-
-
+            typeof(SolarUY.Controllers.HomeController).Assembly
         )
         .Build();
 
-    // Constantes para identificar las capas por Namespace
+    // Constantes para identificar las capas por Namespace.
+    // En el monolito en capas los namespaces siguen la convención:
+    //   SolarUY.Domain, SolarUY.Application, SolarUY.Infrastructure
+    //   y la Presentación en SolarUY.Controllers / SolarUY.Models / SolarUY.Hubs.
     public const string DomainNamespace = ".*Domain.*";
     public const string ApplicationNamespace = ".*Application.*";
     public const string InfrastructureNamespace = ".*Infrastructure.*";
-    public const string PresentationNamespace = ".*Presentation.*|.*Blazor.*|.*UI.*|.*Components.*";
+    public const string PresentationNamespace = ".*Presentation.*|.*Controllers.*|.*Models.*|.*Hubs.*|.*Views.*";
 }

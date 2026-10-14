@@ -6,7 +6,7 @@
 $SONAR_TOKEN = "pega_tu_token_aqui"
 
 # 2. Inventa un nombre para tu proyecto (sin espacios) o usa el nombre de tu taller
-$PROJECT_KEY = "MiProyecto"
+$PROJECT_KEY = "SolarUY"
 
 # =========================================================================
 # NO MODIFICAR ABAJO DE ESTA LÍNEA
