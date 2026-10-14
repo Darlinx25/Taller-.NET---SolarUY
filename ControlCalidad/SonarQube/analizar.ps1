@@ -1,3 +1,5 @@
+param([string]$ProjectPath = $PWD.Path)
+
 # =========================================================================
 # CONFIGURACIÓN DEL PROYECTO
 # =========================================================================
@@ -16,8 +18,7 @@ $PROJECT_KEY = "SolarUY"
 # RUTAS Y VALIDACIONES
 # =========================================================================
 
-# 3. Leer la ruta del proyecto desde el primer parámetro (o usar la carpeta actual por defecto)
-param([string]$ProjectPath = $PWD.Path)
+# 3. La ruta del proyecto se toma del parámetro -ProjectPath (o la carpeta actual por defecto)
 
 # Convertir a ruta absoluta y resolverla
 try {

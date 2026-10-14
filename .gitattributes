@@ -1,0 +1,5 @@
+# Fuerza finales de línea LF en scripts de shell y Dockerfile.
+# Sin esto, en Windows se descargan con CRLF y rompen el shebang
+# (el contenedor falla con "exec /entrypoint.sh: no such file or directory").
+*.sh text eol=lf
+Dockerfile text eol=lf
