@@ -1,5 +1,18 @@
+# Compilación / build (C#/.NET)
 bin/
 obj/
 /packages/
+
+# Rider / IDE
 riderModule.iml
 /_ReSharper.Caches/
+.idea/
+.vs/
+*.user
+
+# Salida generada por el escáner de SonarQube
+.sonarqube/
+
+# Resultados de tests y cobertura
+TestResults/
+*.coverage
