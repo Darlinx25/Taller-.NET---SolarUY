@@ -40,4 +40,5 @@ El proyecto adopta una arquitectura monolitica estructurada en cuatro niveles:
 3. Servicios Integrados y Simulacion: Integracion con proveedor externo de identidades (OIDC), motor de IA para consultas en lenguaje natural y Mock de Inversores/Sensores ARM.
 4. Capa de Datos: Base de datos SQL Server gestionada mediante el ORM Entity Framework Core.
 
-<img width="580" height="943" alt="image" src="https://github.com/user-attachments/assets/a1e2f4ad-62e3-44f3-ae13-fadf451346e7" />
+<img width="719" height="979" alt="image" src="https://github.com/user-attachments/assets/68e71eac-7042-4a7a-923f-ecd11c6b23c2" />
+
