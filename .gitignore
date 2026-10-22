@@ -22,3 +22,4 @@ TestResults/
 
 # Cache de NuGet compartida por los contenedores de desarrollo
 .docker-cache/
+REQUERIMIENTOS/
