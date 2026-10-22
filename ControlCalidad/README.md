@@ -1,43 +1,114 @@
 # Herramientas de Control de Calidad - Taller .NET
 
-Este directorio contiene las herramientas y configuraciones necesarias para garantizar la calidad, el diseño y la arquitectura del código del Taller .NET. 
+Este directorio contiene las herramientas y configuraciones necesarias para garantizar la calidad, el diseño y la arquitectura del código del Taller .NET.
 
-El enfoque utilizado combina el análisis de métricas estáticas con validaciones arquitectónicas y la asistencia guiada por Inteligencia Artificial.
-
----
-
-## 1. 📊 SonarQube (`/SonarQube`)
-Esta carpeta contiene la configuración (archivos de Docker y scripts de ejecución) para levantar y utilizar **SonarQube**.
-
-**Propósito:**
-SonarQube es la herramienta principal para el análisis estático continuo. Se encarga de evaluar la calidad interna del código a nivel de implementación.
-- Detecta **Código Duplicado** (Copy/Paste).
-- Encuentra **Bugs** y vulnerabilidades de seguridad.
-- Detecta **Code Smells** (malos olores en el código), como métodos con demasiada complejidad ciclomática o clases gigantes.
+El enfoque utilizado combina el análisis de métricas estáticas con validaciones arquitectónicas, la asistencia guiada por Inteligencia Artificial y la metodología **Spec-Driven Development (SDD)** con prompting trazable.
 
 ---
 
-## 2. 🏗️ Validación de Código (`/ValidacionDeCodigo`)
-Esta carpeta contiene el ecosistema diseñado para proteger las convenciones del proyecto (Nomenclatura, Clean Architecture y principios SOLID). Está compuesto por dos partes que trabajan en conjunto: la guía (IA) y los guardarraíles (Tests).
+## 1. Metodología SDD + prompting (`/prompting`)
+
+Por cada requerimiento hay una carpeta con los tres artefactos de la metodología, en este orden:
+
+```
+prompting/<requerimiento>/
+├── requirements.md   # qué se necesita: historia de usuario, criterios de aceptación y reglas de negocio
+├── specs.md          # cómo se resuelve: capas Domain / Application / Infrastructure / Presentation
+└── tasks.md          # lista de tareas verificables para implementar la spec
+```
+
+Requerimientos abiertos:
+
+| Requerimiento | Descripción | Estado |
+| --- | --- | --- |
+| `req001_alta_parque_solar` | Alta de parque solar (Administrador) | Implementado |
+
+Reglas de uso (definidas en `/agents/rules/6_flujo_trabajo_ia.md`):
+
+1. No se empieza a codear sin `requirements.md`, `specs.md` y `tasks.md` revisados.
+2. Cada cambio en el código se valida ejecutando los tests (sección 2).
+3. Si un test arquitectónico falla, se corrige el **código**, nunca el test.
+
+---
+
+## 2. Validación de Código (`/ValidacionDeCodigo`)
 
 ### A. Reglas para el Agente IA (`/agents/rules`)
-Contiene archivos Markdown con directrices explícitas sobre cómo debe estructurarse el código. El agente de IA utiliza estas reglas de manera probabilística para enseñar a los estudiantes, sugerir refactorizaciones y evitar que violen principios como el de Responsabilidad Única (SRP) o mezclen capas.
 
-⚠️ **¿Cómo implementar estas reglas en un proyecto real?**
-Para que el agente de IA reconozca y utilice estas directrices en el proyecto principal de los alumnos, debes hacer lo siguiente:
-1. Copiar la carpeta `agents` ubicada aquí.
-2. Pegarla en el **directorio raíz** de la Solución `.sln` del proyecto final.
-3. **Renombrar** la carpeta para que empiece con un punto: `.agents` (ej. `/MiProyectoRaiz/.agents/rules/`). El punto inicial es obligatorio para que el sistema de IA la detecte como una carpeta de configuración. Esto puedo cambiar dependiendo del agente que se utilice.
+Directrices explícitas sobre cómo debe estructurarse el código: Clean Architecture, SOLID, nomenclatura (Spanglish técnico), modelado de dominio rico, capa de presentación "tonta" y flujo de trabajo obligatorio del agente.
 
-### B. Pruebas Deterministas / Guardarraíles (`/CodeQuality.Tests`)
-Contiene un proyecto de pruebas unitarias implementado con **ArchUnitNET**. 
-Mientras que el agente de IA es una ayuda proactiva, estos tests actúan como **guardarraíles** (red de seguridad determinista). 
+### B. Pruebas Deterministas / Guardarraíles (`/ValidacionDeCodigo/CodeQuality.Tests`)
 
-**Propósito:**
-Asegurar matemáticamente que las reglas arquitectónicas no se rompan por accidente o desconocimiento. Si el código no cumple con los test establecido, el mismo fallará automáticamente.
-- Asegura que la capa de Presentación no acceda a la Base de Datos.
-- Verifica que las Entidades del Dominio no dependan de Entity Framework.
-- Garantiza convenciones de nomenclatura (ej. que las interfaces empiecen con `I` y los repositorios terminen en `Repository`).
+Proyecto de pruebas unitarias implementado con **ArchUnitNET**. Mientras que el agente de IA es una ayuda proactiva, estos tests actúan como **guardarraíles** deterministas:
 
-**Implementación:**
-Solo basta con agregar el archivo `.csproj` de esta carpeta a la solución del Taller e indicarle en el archivo de configuración qué ensamblados (proyectos) debe evaluar. Depende de cada IDE.
+- El Dominio no depende de Entity Framework Core.
+- El Dominio no depende de Application, Infrastructure ni Presentación.
+- Application no depende de Infrastructure ni Presentación.
+- La Presentación no accede directamente a Infrastructure.
+- Las implementaciones de repositorio viven en Infrastructure.
+- Convenciones de nomenclatura: interfaces con prefijo `I`, excepciones con sufijo `Exception`.
+
+**Configuración en este repositorio:** el proyecto ya está agregado a `SolarUY.sln` y el `ArchitectureSetup` apunta al ensamblado de `SolarUY` (monolito en capas, un único `.csproj`).
+
+Ejecución (dentro del contenedor de herramientas, sin instalar el SDK en la máquina):
+
+```bash
+docker compose run --rm tools dotnet test SolarUY.sln
+```
+
+O solo los guardarraíles:
+
+```bash
+docker compose run --rm tools dotnet test ControlCalidad/ValidacionDeCodigo/CodeQuality.Tests
+```
+
+> ⚠️ **Regla de integridad:** los archivos de `CodeQuality.Tests` son inmutables. Si una regla
+> entra en conflicto con el diseño, hay que corregir el código o pedir autorización explícita
+> para ajustar el test (ver `/agents/rules/6_flujo_trabajo_ia.md`, sección 6).
+
+### C. Pruebas unitarias del dominio (`/SolarUY.Tests`)
+
+Proyecto xUnit propio con las pruebas del comportamiento del dominio (obligatorias por la regla 5
+del flujo de trabajo). Para las capas Application, Infrastructure y Presentación no se generan
+pruebas unitarias.
+
+```bash
+docker compose run --rm tools dotnet test SolarUY.Tests
+```
+
+---
+
+## 3. 📊 SonarQube (`/SonarQube`)
+
+Configuración (compose + scripts) para levantar y utilizar **SonarQube**:
+
+- Detecta **Código Duplicado** (copy/paste).
+- Encuentra **Bugs** y vulnerabilidades de seguridad.
+- Detecta **Code Smells** (complejidad ciclomática, clases gigantes, etc.).
+
+Funciona como un **stack separado** del runtime (`docker-compose.yml` propio con `sonarqube` y
+`sonarqube-db`): es tooling de calidad, no aplicación. El escáner corre dentro del contenedor de
+herramientas (`tools`) del stack de runtime y alcanza al servidor por `host.docker.internal:9000`.
+
+Detalle paso a paso (token personal, script para Linux/macOS y para Windows):
+[SonarQube/README.md](SonarQube/README.md).
+
+```bash
+# Levantar el servidor de calidad
+docker compose -f ControlCalidad/SonarQube/docker-compose.yml up -d
+
+# Analizar (Linux/macOS)
+./ControlCalidad/SonarQube/analizar.sh
+```
+
+El token se configura en el `.env` de la raíz (`SONAR_TOKEN=...`) y **nunca** se sube al repositorio.
+
+---
+
+## 4. Resumen: qué corre y cuándo
+
+| Herramienta | Dónde vive | Cuándo se ejecuta | Comando |
+| --- | --- | --- | --- |
+| Guardarraíles ArchUnitNET | `ValidacionDeCodigo/CodeQuality.Tests` | En cada cambio de código | `docker compose run --rm tools dotnet test SolarUY.sln` |
+| Tests xUnit del dominio | `SolarUY.Tests` | En cada cambio de código | `docker compose run --rm tools dotnet test SolarUY.Tests` |
+| SonarQube | `SonarQube/` | Antes de cada entrega / cierre de iteración | `./ControlCalidad/SonarQube/analizar.sh` |

@@ -1,25 +1,30 @@
 # Entorno SonarQube Local para .NET
 
-Esta carpeta contiene la configuración necesaria para levantar un servidor de SonarQube local y analizar proyectos en C#/.NET sin necesidad de instalar SDKs de manera global en tu máquina host. Todo corre mediante Docker.
+Esta carpeta contiene la configuración necesaria para levantar un servidor de SonarQube local y analizar el proyecto SolarUY **sin instalar SDKs de manera global en la máquina host**: el escáner corre dentro del contenedor de herramientas (`tools`) del stack de runtime.
+
+> El servidor de SonarQube es *tooling de calidad*, no aplicación: por eso tiene su propio
+> `docker-compose.yml` y no se despliega junto con SolarUY.
 
 ## Requisitos
-- **Docker** instalado y funcionando en tu sistema (Docker Engine en Linux, o Docker Desktop en Windows/Mac).
+- **Docker** instalado y funcionando (Docker Engine en Linux, o Docker Desktop en Windows/Mac).
 
 ---
 
 ## 1. Levantar el Servidor SonarQube
 
-1. Abre tu terminal y ubícate en esta carpeta (donde está el archivo `docker-compose.yml`).
-2. Ejecuta el comando para encender la infraestructura:
+1. Desde la **raíz del repositorio**:
    ```bash
-   docker compose up -d
+   docker compose -f ControlCalidad/SonarQube/docker-compose.yml up -d
    ```
-3. Espera un par de minutos a que el servidor inicie. Puedes revisar los logs con `docker compose logs -f sonarqube`.
-4. Abre en tu navegador: **http://localhost:9000**
-5. Inicia sesión con:
+2. Espera un par de minutos a que el servidor inicie (la primera vez es más lento).
+   ```bash
+   docker compose -f ControlCalidad/SonarQube/docker-compose.yml logs -f sonarqube
+   ```
+3. Abre en tu navegador: **http://localhost:9000**
+4. Inicia sesión con:
    - **Usuario:** `admin`
    - **Contraseña:** `admin`
-6. El sistema te pedirá cambiar la contraseña por defecto.
+5. El sistema te pedirá cambiar la contraseña por defecto.
 
 ### 1.1 Crear el Token de Seguridad
 Para que el analizador se comunique con el servidor, necesita un Token:
@@ -27,46 +32,55 @@ Para que el analizador se comunique con el servidor, necesita un Token:
 2. En **Generate Tokens**, ingresa un nombre (ej. `mi-token-local`), selecciona tipo `User Token`, y sin expiración (o a conveniencia).
 3. **Guarda muy bien este Token**, lo necesitarás para analizar tu código.
 
-> **NOTA IMPORTANTE:** Al iniciar sesión, la pantalla de inicio de SonarQube te invitará a crear un proyecto ("Create a local project"). **No es necesario que lo hagas.** Puedes ignorar esa pantalla. Simplemente crea tu token como se indica arriba y sigue con el Paso 2; el script se encargará de crear tu proyecto en SonarQube de forma automática la primera vez que analice tu código.
+> **NOTA IMPORTANTE:** Al iniciar sesión, la pantalla de inicio de SonarQube te invitará a crear un proyecto ("Create a local project"). **No es necesario que lo hagas.** El script se encarga de crear el proyecto en SonarQube de forma automática la primera vez que analice tu código.
+
+### 1.2 Guardar el token en tu máquina
+
+El token es **personal de cada máquina** y no se sube al repositorio. Se guarda en el `.env` de la raíz:
+
+```bash
+echo "SONAR_TOKEN=squ_xxxxxxxxxxxxxxxx" >> .env
+```
+
+(`.env` está en `.gitignore`; `.env.example` lo deja vacío a propósito.)
 
 ---
 
 ## 2. Cómo Analizar tu Código
 
-Ejecutar scripts (`analizar.sh` para Linux/Mac y `analizar.ps1` para Windows). 
+Los scripts son los mismos para todos: `analizar.sh` (Linux/Mac) y `analizar.ps1` (Windows). No hay que editarlos ni pasarles rutas.
 
-1. Abre el script correspondiente a tu SO con tu editor de texto favorito (VS Code, Notepad, etc.).
-2. En las primeras líneas, verás dos variables. Rellénalas con tus datos:
+**En Linux/Mac:**
+```bash
+./ControlCalidad/SonarQube/analizar.sh
+```
+
+**En Windows (PowerShell):**
+```powershell
+.\ControlCalidad\SonarQube\analizar.ps1
+```
+
+¿Qué hace el script?
+
+1. Verifica que exista `SONAR_TOKEN` (en el entorno o en el `.env` de la raíz) y avisa si falta.
+2. Levanta el stack de calidad (`sonarqube` + `sonarqube-db`) si no está arriba.
+3. Espera a que el servidor responda en `/api/system/status`.
+4. Lanza el escáner dentro del contenedor de herramientas:
    ```bash
-   SONAR_TOKEN="pega_tu_token_aqui"
-   PROJECT_KEY="ElNombreQueLeDisteAlProyecto"
+   dotnet sonarscanner begin /k:"$SONAR_PROJECT_KEY" /d:sonar.host.url=... /d:sonar.token=...
+   dotnet build
+   dotnet sonarscanner end /d:sonar.token=...
    ```
-3. Guarda el archivo.
-4. Abre tu terminal y ejecuta el script pasándole la ruta de la carpeta de tu proyecto C# (donde está tu `.sln` o `.csproj`). Si no le pasas ruta, analizará la carpeta actual.
+5. Muestra la URL con los resultados.
 
-   **En Linux/Mac:**
-   ```bash
-   chmod +x analizar.sh  # (Solo la primera vez para darle permisos)
-   
-   # Opción A: Pasando la ruta de tu proyecto
-   ./analizar.sh /ruta/hacia/tu/proyecto
-   
-   # Opción B: Estando dentro de la carpeta de tu proyecto
-   /ruta/hacia/sonar/analizar.sh
-   ```
+Variables opcionales (en el `.env` de la raíz):
 
-   **En Windows (PowerShell):**
-   ```powershell
-   # Opción A: Pasando la ruta de tu proyecto
-   .\analizar.ps1 "C:\ruta\hacia\tu\proyecto"
-   
-   # Opción B: Estando dentro de la carpeta de tu proyecto
-   C:\ruta\hacia\sonar\analizar.ps1
-   ```
-
-5. El script verificará si tienes la imagen del escáner; si no la tienes, **la construirá automáticamente la primera vez**.
-6. Luego, verás cómo arranca mágicamente el contenedor, compila tu código, y envía los resultados.
-7. Regresa a **http://localhost:9000** en tu navegador y actualiza la página. ¡Deberías ver tu proyecto analizado!
+| Variable | Por defecto | Para qué sirve |
+| --- | --- | --- |
+| `SONAR_TOKEN` | (vacío) | Token personal, obligatorio |
+| `SONAR_PROJECT_KEY` | `SolarUY` | Clave del proyecto en SonarQube |
+| `SONAR_HOST_URL` | `http://localhost:9000` | URL del servidor **desde el host** (la usa el script para esperar y para el mensaje final) |
+| `SONAR_HOST_URL_CONTAINER` | `http://host.docker.internal:9000` | URL del servidor **desde el contenedor** (la usa el escáner) |
 
 ---
 
@@ -78,9 +92,20 @@ La interfaz de SonarQube tiene mucha información. Para no perderte, enfócate e
 Es la portada de tu proyecto. Lo más importante aquí es el recuadro grande que dice **Passed** o **Failed** (el "Quality Gate"). Te indica rápidamente si tu código cumple con los estándares mínimos de calidad de la industria.
 
 ### B. Issues (Problemas)
-¡Esta es tu área de trabajo! Aquí verás una lista detallada de todos los errores, bugs y "Code Smells" (malas prácticas). 
-* **Tip de Aprendizaje:** Si haces clic en un problema, SonarQube te mostrará la línea exacta de código donde te equivocaste. Si haces clic en la pestaña **"Why is this an issue?"** (¿Por qué es un problema?), te dará una explicación teórica de por qué esa práctica está mal y cómo se escribe correctamente en C#.
+¡Esta es tu área de trabajo! Aquí verás una lista detallada de todos los errores, bugs y "Code Smells" (malas prácticas).
+* **Tip de Aprendizaje:** Si haces clic en un problema, SonarQube te mostrará la línea exacta de código donde te equivocaste. Si haces clic en la pestaña **"Why is this an issue?"** (¿Por qué es un problema?), te dará una explicación teórica de por qué esa práctica es mala y cómo se escribe correctamente en C#.
 
 ### C. Measures (Medidas)
 Aquí encontrarás gráficas y métricas detalladas del proyecto completo.
 * **¿Cómo ver el Código Duplicado?** La forma más fácil de verlo en las versiones nuevas de SonarQube es directamente desde la pestaña **Overview**. En la parte inferior derecha verás un indicador llamado **Duplications** con un porcentaje. Si haces clic en ese número, el sistema te llevará exactamente a los archivos y a las líneas de código que copiaste y pegaste.
+
+---
+
+## 4. Apagar el servidor
+
+```bash
+docker compose -f ControlCalidad/SonarQube/docker-compose.yml down      # conserva los datos
+docker compose -f ControlCalidad/SonarQube/docker-compose.yml down -v   # borra el historial de análisis
+```
+
+SonarQube necesita ~2 GB de RAM: si la maquina va justa, apagalo mientras se trabaja con el stack de runtime.

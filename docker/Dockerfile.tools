@@ -1,0 +1,25 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends default-jre-headless \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV DOTNET_TOOLS_PATH=/tools
+ENV PATH=$PATH:/tools
+ENV DOTNET_CLI_HOME=/tmp/dh
+ENV DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
+ENV DOTNET_NOLOGO=1
+ENV NUGET_PACKAGES=/nuget
+
+RUN dotnet tool install --tool-path /tools dotnet-ef --version 10.0.12 \
+    && dotnet tool install --tool-path /tools dotnet-sonarscanner --version 12.0.0 \
+    && chmod -R a+rX /tools \
+    && rm -rf /tmp/dh
+
+WORKDIR /app
+
+COPY docker/tools-entrypoint.sh /usr/local/bin/tools-entrypoint.sh
+RUN chmod +x /usr/local/bin/tools-entrypoint.sh
+
+ENTRYPOINT ["tools-entrypoint.sh"]
+CMD ["bash"]

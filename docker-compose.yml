@@ -1,0 +1,114 @@
+name: solaruy
+
+# Stack de runtime de la aplicación.
+# Es lo único que se despliega y escala; el stack de calidad (SonarQube) vive
+# aparte en ControlCalidad/SonarQube/docker-compose.yml.
+#
+#   docker compose up -d        -> mysql + migrate + app   (http://localhost:5080)
+#   docker compose run --rm tools dotnet test
+#
+# Variables: ver .env.example
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?definí MYSQL_ROOT_PASSWORD en .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-SolarUY}
+      MYSQL_USER: ${MYSQL_APP_USER:-solaruy}
+      MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD:?definí MYSQL_APP_PASSWORD en .env}
+    ports:
+      - "127.0.0.1:${MYSQL_PORT:-3307}:3306"
+    volumes:
+      - mysqldata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      - solaruy
+
+  migrate:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.tools
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    working_dir: /app
+    environment:
+      DOTNET_CLI_HOME: /tmp/dh
+      NUGET_PACKAGES: /nuget
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__SolarUYDb: "Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-SolarUY};User=${MYSQL_APP_USER:-solaruy};Password=${MYSQL_APP_PASSWORD};"
+    volumes:
+      - .:/app
+      - ./.docker-cache/nuget:/nuget
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: >-
+      bash -lc "dotnet tool restore &&
+                dotnet ef database update --project SolarUY --startup-project SolarUY"
+    restart: "no"
+    networks:
+      - solaruy
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.app
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__SolarUYDb: "Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-SolarUY};User=${MYSQL_APP_USER:-solaruy};Password=${MYSQL_APP_PASSWORD};"
+    ports:
+      - "${APP_PORT:-5080}:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/8080'"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - solaruy
+
+  tools:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.tools
+    profiles:
+      - tools
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    working_dir: /app
+    environment:
+      DOTNET_CLI_HOME: /tmp/dh
+      NUGET_PACKAGES: /nuget
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+      DOTNET_NOLOGO: "1"
+      ASPNETCORE_ENVIRONMENT: Development
+      SONAR_TOKEN: "${SONAR_TOKEN:-}"
+      SONAR_HOST_URL: "${SONAR_HOST_URL_CONTAINER:-http://host.docker.internal:9000}"
+      SONAR_PROJECT_KEY: "${SONAR_PROJECT_KEY:-SolarUY}"
+      ConnectionStrings__SolarUYDb: "Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-SolarUY};User=${MYSQL_APP_USER:-solaruy};Password=${MYSQL_APP_PASSWORD};"
+    volumes:
+      - .:/app
+      - ./.docker-cache/nuget:/nuget
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - solaruy
+
+networks:
+  solaruy:
+
+volumes:
+  mysqldata:

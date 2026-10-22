@@ -1,46 +1,58 @@
-version: "3.8"
+name: solaruy-quality
+
+# Stack de calidad: servidor de SonarQube + su base de datos.
+# Es tooling de desarrollo/CI: no forma parte de la aplicación, no se despliega
+# con ella y no se escala. Por eso vive en un compose aparte.
+#
+#   docker compose -f ControlCalidad/SonarQube/docker-compose.yml up -d
+#   docker compose run --rm tools bash ./ControlCalidad/SonarQube/analizar.sh
+#
+# El scanner corre en el stack de runtime (servicio "tools") y llega al server
+# por host.docker.internal:9000.
 
 services:
   sonarqube:
     image: sonarqube:community
-    container_name: sonarqube-taller
+    restart: unless-stopped
     depends_on:
-      - db
+      - sonarqube-db
     environment:
-      - SONAR_JDBC_URL=jdbc:postgresql://db:5432/sonar
-      - SONAR_JDBC_USERNAME=sonar
-      - SONAR_JDBC_PASSWORD=sonar
-      - SONAR_SEARCH_JAVAADDITIONALOPTS=-Dcluster.routing.allocation.disk.threshold_enabled=false
+      SONAR_JDBC_URL: jdbc:postgresql://sonarqube-db:5432/sonar
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: sonar
+      SONAR_SEARCH_JAVAADDITIONALOPTS: -Dcluster.routing.allocation.disk.threshold_enabled=false
+    ports:
+      - "127.0.0.1:${SONAR_PORT:-9000}:9000"
     volumes:
       - sonarqube_data:/opt/sonarqube/data
       - sonarqube_extensions:/opt/sonarqube/extensions
       - sonarqube_logs:/opt/sonarqube/logs
-    ports:
-      - "9000:9000"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/9000'"]
+      interval: 20s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
     networks:
-      - sonarnet
-    restart: unless-stopped
+      - quality
 
-  db:
+  sonarqube-db:
     image: postgres:15
-    container_name: sonarqube-db
-    environment:
-      - POSTGRES_USER=sonar
-      - POSTGRES_PASSWORD=sonar
-    volumes:
-      - postgresql:/var/lib/postgresql
-      - postgresql_data:/var/lib/postgresql/data
-    networks:
-      - sonarnet
     restart: unless-stopped
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: sonar
+      POSTGRES_DB: sonar
+    volumes:
+      - sonarqube_pgdata:/var/lib/postgresql/data
+    networks:
+      - quality
 
 networks:
-  sonarnet:
-    driver: bridge
+  quality:
 
 volumes:
   sonarqube_data:
   sonarqube_extensions:
   sonarqube_logs:
-  postgresql:
-  postgresql_data:
+  sonarqube_pgdata:

@@ -16,3 +16,9 @@ riderModule.iml
 # Resultados de tests y cobertura
 TestResults/
 *.coverage
+
+# Configuración local por máquina (se copia desde .env.example)
+.env
+
+# Cache de NuGet compartida por los contenedores de desarrollo
+.docker-cache/

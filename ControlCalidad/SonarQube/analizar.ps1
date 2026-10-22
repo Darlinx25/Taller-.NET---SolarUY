@@ -1,68 +1,79 @@
-param([string]$ProjectPath = $PWD.Path)
+param([switch]$SkipWait)
 
 # =========================================================================
-# CONFIGURACIÓN DEL PROYECTO
+# Análisis estático con SonarQube.
+#
+# El servidor de SonarQube vive en el stack de calidad
+# (ControlCalidad/SonarQube/docker-compose.yml) y el scanner corre en el
+# stack de runtime (servicio "tools"), que alcanza al server por
+# host.docker.internal:9000.
+#
+# Uso:
+#   $env:SONAR_TOKEN = "squ_..."   # o dejalo en el .env de la raíz
+#   .\ControlCalidad\SonarQube\analizar.ps1
 # =========================================================================
 
-# 1. Pega aquí el Token que generaste en SonarQube
-$SONAR_TOKEN = "pega_tu_token_aqui"
+$ErrorActionPreference = "Stop"
 
-# 2. Inventa un nombre para tu proyecto (sin espacios) o usa el nombre de tu taller
-$PROJECT_KEY = "SolarUY"
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$RootDir = (Resolve-Path (Join-Path $ScriptDir "..\..\..")).Path
+$RuntimeCompose = Join-Path $RootDir "docker-compose.yml"
+$QualityCompose = Join-Path $RootDir "ControlCalidad\SonarQube\docker-compose.yml"
+$RootEnv = Join-Path $RootDir ".env"
 
-# =========================================================================
-# NO MODIFICAR ABAJO DE ESTA LÍNEA
-# =========================================================================
+$ProjectKey = if ($env:SONAR_PROJECT_KEY) { $env:SONAR_PROJECT_KEY } else { "SolarUY" }
+$HostUrl = if ($env:SONAR_HOST_URL) { $env:SONAR_HOST_URL } else { "http://localhost:9000" }
 
-# =========================================================================
-# RUTAS Y VALIDACIONES
-# =========================================================================
+$Token = $env:SONAR_TOKEN
+if (-not $Token -and (Test-Path $RootEnv)) {
+    $line = Select-String -Path $RootEnv -Pattern '^SONAR_TOKEN=' | Select-Object -First 1
+    if ($line) { $Token = ($line.Line -replace '^SONAR_TOKEN=', '').Trim('"', "'") }
+}
 
-# 3. La ruta del proyecto se toma del parámetro -ProjectPath (o la carpeta actual por defecto)
-
-# Convertir a ruta absoluta y resolverla
-try {
-    $ABS_PATH = (Resolve-Path $ProjectPath).Path
-} catch {
-    Write-Host "ERROR: El directorio $ProjectPath no existe." -ForegroundColor Red
+if (-not $Token) {
+    Write-Host "ERROR: falta SONAR_TOKEN." -ForegroundColor Red
+    Write-Host "Generá un token personal (ver ControlCalidad/SonarQube/README.md) y guardalo en el .env de la raíz."
     exit 1
 }
 
-if ($SONAR_TOKEN -eq "pega_tu_token_aqui") {
-    Write-Host "ERROR: Debes modificar el archivo analizar.ps1 y poner tu SONAR_TOKEN." -ForegroundColor Red
-    exit 1
+$EnvFileArgs = @()
+if (Test-Path $RootEnv) { $EnvFileArgs = @("--env-file", $RootEnv) }
+
+Write-Host "==> Levantando el stack de calidad (SonarQube)"
+& docker compose -f $QualityCompose @EnvFileArgs up -d
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+if (-not $SkipWait) {
+    Write-Host "==> Esperando a que SonarQube responda..."
+    $ready = $false
+    for ($i = 0; $i -lt 60; $i++) {
+        try {
+            Invoke-WebRequest -Uri "$HostUrl/api/system/status" -UseBasicParsing -TimeoutSec 5 | Out-Null
+            $ready = $true
+            break
+        } catch {
+            Start-Sleep -Seconds 5
+        }
+    }
+    if (-not $ready) {
+        Write-Host "ERROR: SonarQube no respondió a tiempo en $HostUrl" -ForegroundColor Red
+        & docker compose -f $QualityCompose @EnvFileArgs logs --tail 50 sonarqube
+        exit 1
+    }
 }
 
-# =========================================================================
-# CONFIGURAR QUALITY GATE ESTRICTO
-# =========================================================================
-Write-Host "Configurando Quality Gate Estricto en SonarQube..." -ForegroundColor Cyan
-$EncodedToken = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${SONAR_TOKEN}:"))
-$Headers = @{ Authorization = "Basic $EncodedToken" }
-$BaseUrl = "http://localhost:9000/api/qualitygates"
-$QGName = "EstrictoTaller"
+Write-Host "==> Analizando el proyecto $ProjectKey"
+& docker compose -f $RuntimeCompose @EnvFileArgs --profile tools run --rm tools bash -lc @'
+set -e
+dotnet tool restore
+dotnet sonarscanner begin \
+  /k:"$SONAR_PROJECT_KEY" \
+  /d:sonar.host.url="$SONAR_HOST_URL" \
+  /d:sonar.token="$SONAR_TOKEN"
+dotnet build
+dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
+'@
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-try { Invoke-RestMethod -Uri "$BaseUrl/create?name=$QGName" -Method Post -Headers $Headers -ErrorAction SilentlyContinue | Out-Null } catch {}
-try { Invoke-RestMethod -Uri "$BaseUrl/create_condition?gateName=$QGName&metric=blocker_violations&op=GT&error=0" -Method Post -Headers $Headers -ErrorAction SilentlyContinue | Out-Null } catch {}
-try { Invoke-RestMethod -Uri "$BaseUrl/create_condition?gateName=$QGName&metric=security_rating&op=GT&error=1" -Method Post -Headers $Headers -ErrorAction SilentlyContinue | Out-Null } catch {}
-try { Invoke-RestMethod -Uri "$BaseUrl/create_condition?gateName=$QGName&metric=reliability_rating&op=GT&error=1" -Method Post -Headers $Headers -ErrorAction SilentlyContinue | Out-Null } catch {}
-try { Invoke-RestMethod -Uri "$BaseUrl/set_as_default?name=$QGName" -Method Post -Headers $Headers -ErrorAction SilentlyContinue | Out-Null } catch {}
-
-$IMAGE_NAME = "mi-taller-scanner"
-$imageExists = docker images -q $IMAGE_NAME
-if ([string]::IsNullOrWhiteSpace($imageExists)) {
-    Write-Host "La imagen de Docker '$IMAGE_NAME' no existe en tu sistema." -ForegroundColor Yellow
-    Write-Host "Construyéndola automáticamente por primera vez (esto puede tardar unos minutos)..." -ForegroundColor Yellow
-    $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
-    docker build -t $IMAGE_NAME "$ScriptDir/scanner"
-}
-
-Write-Host "Iniciando contenedor analizador para $PROJECT_KEY..." -ForegroundColor Cyan
-Write-Host "Directorio a analizar: $ABS_PATH" -ForegroundColor Cyan
-
-docker run --rm --network host `
-  -v "${ABS_PATH}:/app" `
-  -e SONAR_HOST_URL="http://localhost:9000" `
-  -e SONAR_TOKEN=$SONAR_TOKEN `
-  -e PROJECT_KEY=$PROJECT_KEY `
-  mi-taller-scanner
+Write-Host ""
+Write-Host "==> Resultados en $HostUrl/projects"

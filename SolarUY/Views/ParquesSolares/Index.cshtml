@@ -1,0 +1,46 @@
+@model IReadOnlyList<ParqueSolarDto>
+@{
+    ViewData["Title"] = "Parques Solares";
+}
+
+<h1 class="h3 mb-4">Parques solares</h1>
+
+@if (TempData["Mensaje"] is string mensaje)
+{
+    <div class="alert alert-success" role="alert">@mensaje</div>
+}
+
+<p class="mb-3">
+    <a class="btn btn-primary" asp-controller="ParquesSolares" asp-action="Create">Registrar parque solar</a>
+</p>
+
+@if (Model.Count == 0)
+{
+    <div class="alert alert-info" role="alert">
+        Todavía no hay parques solares registrados.
+    </div>
+}
+else
+{
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th scope="col">@Html.DisplayNameFor(model => model[0].Nombre)</th>
+                <th scope="col">@Html.DisplayNameFor(model => model[0].Ubicacion)</th>
+                <th scope="col">@Html.DisplayNameFor(model => model[0].CapacidadEstimadaMW)</th>
+                <th scope="col">@Html.DisplayNameFor(model => model[0].FechaCreacion)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var parque in Model)
+            {
+                <tr>
+                    <td>@parque.Nombre</td>
+                    <td>@parque.Ubicacion</td>
+                    <td>@(parque.CapacidadEstimadaMW?.ToString("0.00") ?? "-")</td>
+                    <td>@parque.FechaCreacion.ToString("yyyy-MM-dd HH:mm")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

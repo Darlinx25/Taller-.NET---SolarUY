@@ -1,0 +1,11 @@
+.git
+.gitignore
+.gitattributes
+.idea
+.vs
+**/bin
+**/obj
+**/TestResults
+**/.sonarqube
+.docker-cache
+REQUERIMIENTOS
