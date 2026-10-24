@@ -51,6 +51,7 @@ services:
         condition: service_healthy
     command: >-
       bash -lc "dotnet tool restore &&
+                dotnet restore SolarUY.sln &&
                 dotnet ef database update --project SolarUY --startup-project SolarUY"
     restart: "no"
     networks:
