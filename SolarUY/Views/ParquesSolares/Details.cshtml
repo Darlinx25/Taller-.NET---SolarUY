@@ -1,0 +1,25 @@
+@model ParqueSolarDto
+@{
+    ViewData["Title"] = "Detalle del parque solar";
+}
+
+<h1 class="h3 mb-4">Detalle del parque solar</h1>
+
+<dl class="row">
+    <dt class="col-sm-3">@Html.DisplayNameFor(model => model.Nombre)</dt>
+    <dd class="col-sm-9">@Model.Nombre</dd>
+
+    <dt class="col-sm-3">@Html.DisplayNameFor(model => model.Ubicacion)</dt>
+    <dd class="col-sm-9">@Model.Ubicacion</dd>
+
+    <dt class="col-sm-3">@Html.DisplayNameFor(model => model.CapacidadEstimadaMW)</dt>
+    <dd class="col-sm-9">@(Model.CapacidadEstimadaMW?.ToString("0.00") ?? "-")</dd>
+
+    <dt class="col-sm-3">@Html.DisplayNameFor(model => model.FechaCreacion)</dt>
+    <dd class="col-sm-9">@Model.FechaCreacion.ToString("yyyy-MM-dd HH:mm")</dd>
+</dl>
+
+<div class="mt-4">
+    <a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.Id">Editar</a>
+    <a class="btn btn-secondary" asp-action="Index">Volver</a>
+</div>

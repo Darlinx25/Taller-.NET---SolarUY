@@ -80,4 +80,120 @@ public class ParquesSolaresController : Controller
         TempData["Mensaje"] = $"El parque solar '{dto.Nombre}' se registró correctamente.";
         return RedirectToAction(nameof(Index));
     }
+
+    /// <summary>
+    /// Muestra el detalle de un parque solar.
+    /// </summary>
+    /// <param name="id">Identificador del parque solar.</param>
+    /// <param name="cancellationToken">Token de cancelación.</param>
+    /// <returns>Vista con el detalle del parque solar.</returns>
+    [HttpGet]
+    public async Task<IActionResult> Details(Guid id, CancellationToken cancellationToken)
+    {
+        var parque = await _parqueSolarService.ObtenerParqueAsync(id, cancellationToken);
+
+        return parque is null ? NotFound() : View(parque);
+    }
+
+    /// <summary>
+    /// Muestra el formulario de edición de un parque solar.
+    /// </summary>
+    /// <param name="id">Identificador del parque solar.</param>
+    /// <param name="cancellationToken">Token de cancelación.</param>
+    /// <returns>Vista con el formulario de edición.</returns>
+    [HttpGet]
+    public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
+    {
+        var parque = await _parqueSolarService.ObtenerParqueAsync(id, cancellationToken);
+
+        if (parque is null)
+        {
+            return NotFound();
+        }
+
+        var dto = new EditarParqueSolarDto
+        {
+            Id = parque.Id,
+            Nombre = parque.Nombre,
+            Ubicacion = parque.Ubicacion,
+            CapacidadEstimadaMW = parque.CapacidadEstimadaMW,
+        };
+
+        return View(dto);
+    }
+
+    /// <summary>
+    /// Actualiza los datos de un parque solar existente.
+    /// </summary>
+    /// <param name="dto">Datos del parque solar a actualizar.</param>
+    /// <param name="cancellationToken">Token de cancelación.</param>
+    /// <returns>Redirección al listado o el formulario con los errores de validación.</returns>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(
+        EditarParqueSolarDto dto,
+        CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(dto);
+        }
+
+        try
+        {
+            await _parqueSolarService.EditarParqueSolarAsync(dto, cancellationToken);
+        }
+        catch (NombreParqueDuplicadoException)
+        {
+            ModelState.AddModelError(nameof(dto.Nombre), "Ya existe un parque solar con ese nombre.");
+            return View(dto);
+        }
+        catch (ParqueSolarNoEncontradoException)
+        {
+            TempData["Error"] = "No se encontró el parque solar que se quería editar.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        TempData["Mensaje"] = $"El parque solar '{dto.Nombre}' se actualizó correctamente.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    /// <summary>
+    /// Muestra la confirmación de baja de un parque solar.
+    /// </summary>
+    /// <param name="id">Identificador del parque solar.</param>
+    /// <param name="cancellationToken">Token de cancelación.</param>
+    /// <returns>Vista de confirmación de baja.</returns>
+    [HttpGet]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var parque = await _parqueSolarService.ObtenerParqueAsync(id, cancellationToken);
+
+        return parque is null ? NotFound() : View(parque);
+    }
+
+    /// <summary>
+    /// Elimina un parque solar existente.
+    /// </summary>
+    /// <param name="id">Identificador del parque solar a eliminar.</param>
+    /// <param name="cancellationToken">Token de cancelación.</param>
+    /// <returns>Redirección al listado de parques solares.</returns>
+    [HttpPost]
+    [ActionName(nameof(Delete))]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteConfirmed(Guid id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _parqueSolarService.EliminarParqueSolarAsync(id, cancellationToken);
+        }
+        catch (ParqueSolarNoEncontradoException)
+        {
+            TempData["Error"] = "No se encontró el parque solar que se quería eliminar.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        TempData["Mensaje"] = "El parque solar se eliminó correctamente.";
+        return RedirectToAction(nameof(Index));
+    }
 }

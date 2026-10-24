@@ -10,6 +10,11 @@
     <div class="alert alert-success" role="alert">@mensaje</div>
 }
 
+@if (TempData["Error"] is string error)
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+
 <p class="mb-3">
     <a class="btn btn-primary" asp-controller="ParquesSolares" asp-action="Create">Registrar parque solar</a>
 </p>
@@ -29,6 +34,7 @@ else
                 <th scope="col">@Html.DisplayNameFor(model => model[0].Ubicacion)</th>
                 <th scope="col">@Html.DisplayNameFor(model => model[0].CapacidadEstimadaMW)</th>
                 <th scope="col">@Html.DisplayNameFor(model => model[0].FechaCreacion)</th>
+                <th scope="col">Acciones</th>
             </tr>
         </thead>
         <tbody>
@@ -39,6 +45,11 @@ else
                     <td>@parque.Ubicacion</td>
                     <td>@(parque.CapacidadEstimadaMW?.ToString("0.00") ?? "-")</td>
                     <td>@parque.FechaCreacion.ToString("yyyy-MM-dd HH:mm")</td>
+                    <td>
+                        <a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@parque.Id">Detalle</a>
+                        <a class="btn btn-sm btn-outline-primary" asp-action="Edit" asp-route-id="@parque.Id">Editar</a>
+                        <a class="btn btn-sm btn-outline-danger" asp-action="Delete" asp-route-id="@parque.Id">Eliminar</a>
+                    </td>
                 </tr>
             }
         </tbody>

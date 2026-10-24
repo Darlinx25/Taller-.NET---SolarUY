@@ -23,10 +23,9 @@ public class DomainTests
     public void DomainLayer_ShouldNotUseEntityFramework()
     {
         IArchRule rule = Classes()
-            .That().ResideInNamespace(DomainNamespace)
-            .Should().NotDependOnAnyTypesThat().ResideInNamespace("Microsoft.EntityFrameworkCore.*")
-            .Because("El dominio no debe estar acoplado al ORM.")
-            .WithoutRequiringPositiveResults();
+            .That().ResideInNamespaceMatching(DomainNamespace)
+            .Should().NotDependOnAnyTypesThat().ResideInNamespaceMatching("Microsoft.EntityFrameworkCore.*")
+            .Because("El dominio no debe estar acoplado al ORM.");
 
         rule.Check(_architecture);
     }

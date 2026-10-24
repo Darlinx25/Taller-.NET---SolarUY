@@ -22,14 +22,13 @@ public class LayerTests
     public void DomainLayer_ShouldNotHaveDependenciesOnOtherLayers()
     {
         IArchRule rule = Classes()
-            .That().ResideInNamespace(DomainNamespace)
+            .That().ResideInNamespaceMatching(DomainNamespace)
             .Should().NotDependOnAny(
-                Classes().That().ResideInNamespace(ApplicationNamespace)
-                .Or().ResideInNamespace(InfrastructureNamespace)
-                .Or().ResideInNamespace(PresentationNamespace)
+                Classes().That().ResideInNamespaceMatching(ApplicationNamespace)
+                .Or().ResideInNamespaceMatching(InfrastructureNamespace)
+                .Or().ResideInNamespaceMatching(PresentationNamespace)
             )
-            .Because("El Dominio es el núcleo y no debe depender de ninguna otra capa (Clean Architecture).")
-            .WithoutRequiringPositiveResults();
+            .Because("El Dominio es el núcleo y no debe depender de ninguna otra capa (Clean Architecture).");
 
         rule.Check(_architecture);
     }
@@ -44,13 +43,12 @@ public class LayerTests
     public void ApplicationLayer_ShouldNotDependOnInfrastructureOrPresentation()
     {
         IArchRule rule = Classes()
-            .That().ResideInNamespace(ApplicationNamespace)
+            .That().ResideInNamespaceMatching(ApplicationNamespace)
             .Should().NotDependOnAny(
-                Classes().That().ResideInNamespace(InfrastructureNamespace)
-                .Or().ResideInNamespace(PresentationNamespace)
+                Classes().That().ResideInNamespaceMatching(InfrastructureNamespace)
+                .Or().ResideInNamespaceMatching(PresentationNamespace)
             )
-            .Because("La capa de Aplicación solo debe depender del Dominio.")
-            .WithoutRequiringPositiveResults();
+            .Because("La capa de Aplicación solo debe depender del Dominio.");
 
         rule.Check(_architecture);
     }
@@ -65,12 +63,11 @@ public class LayerTests
     public void PresentationLayer_ShouldNotDependOnInfrastructureDirectly()
     {
         IArchRule rule = Classes()
-            .That().ResideInNamespace(PresentationNamespace)
+            .That().ResideInNamespaceMatching(PresentationNamespace)
             .Should().NotDependOnAny(
-                Classes().That().ResideInNamespace(InfrastructureNamespace)
+                Classes().That().ResideInNamespaceMatching(InfrastructureNamespace)
             )
-            .Because("La Presentación MVC no debe acceder directamente a la base de datos o repositorios reales. Debe usar la capa de Aplicación.")
-            .WithoutRequiringPositiveResults();
+            .Because("La Presentación MVC no debe acceder directamente a la base de datos o repositorios reales. Debe usar la capa de Aplicación.");
 
         rule.Check(_architecture);
     }

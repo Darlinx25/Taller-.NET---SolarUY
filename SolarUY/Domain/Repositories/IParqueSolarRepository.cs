@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,9 +16,27 @@ public interface IParqueSolarRepository
     /// Indica si ya existe un parque solar registrado con el nombre indicado.
     /// </summary>
     /// <param name="nombre">Nombre a verificar.</param>
+    /// <param name="parqueIdExcluido">Identificador de parque que no debe considerarse en la verificación.</param>
     /// <param name="cancellationToken">Token de cancelación.</param>
     /// <returns><c>true</c> si el nombre ya está en uso.</returns>
-    Task<bool> ExisteNombreAsync(string nombre, CancellationToken cancellationToken = default);
+    Task<bool> ExisteNombreAsync(
+        string nombre,
+        Guid? parqueIdExcluido = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Obtiene un parque solar por su identificador.
+    /// </summary>
+    /// <param name="id">Identificador del parque solar.</param>
+    /// <param name="cancellationToken">Token de cancelación.</param>
+    /// <returns>El parque solar encontrado o <c>null</c> si no existe.</returns>
+    Task<ParqueSolar?> ObtenerPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Marca un parque solar para ser eliminado.
+    /// </summary>
+    /// <param name="parque">Parque solar a eliminar.</param>
+    void Eliminar(ParqueSolar parque);
 
     /// <summary>
     /// Agrega un parque solar al conjunto de datos a persistir.

@@ -111,4 +111,104 @@ public class ParqueSolarTests
 
         Assert.Throws<ArgumentOutOfRangeException>(() => parque.ActualizarCapacidadEstimada(-0.01m));
     }
+
+    [Fact]
+    public void ActualizarDatos_ConDatosValidos_ActualizaElEstadoDelParque()
+    {
+        var parque = new ParqueSolar("Parque Manga", "Ruta 5 km 12", 25.5m);
+
+        parque.ActualizarDatos("Parque Norte", "Ruta 8 km 20", 30.75m);
+
+        Assert.Equal("Parque Norte", parque.Nombre);
+        Assert.Equal("Ruta 8 km 20", parque.Ubicacion);
+        Assert.Equal(30.75m, parque.CapacidadEstimadaMW);
+    }
+
+    [Fact]
+    public void ActualizarDatos_RecortaLosEspaciosDelNombreYLaUbicacion()
+    {
+        var parque = new ParqueSolar("Parque Manga", "Ruta 5 km 12");
+
+        parque.ActualizarDatos("  Parque Norte  ", "  Ruta 8 km 20  ", null);
+
+        Assert.Equal("Parque Norte", parque.Nombre);
+        Assert.Equal("Ruta 8 km 20", parque.Ubicacion);
+        Assert.Null(parque.CapacidadEstimadaMW);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ActualizarDatos_NombreVacio_LanzaArgumentException(string? nombre)
+    {
+        var parque = new ParqueSolar("Parque Manga", "Ruta 5 km 12");
+
+        var excepcion = Assert.Throws<ArgumentException>(
+            () => parque.ActualizarDatos(nombre!, "Ruta 8 km 20", null));
+
+        Assert.Equal("nombre", excepcion.ParamName);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ActualizarDatos_UbicacionVacia_LanzaArgumentException(string? ubicacion)
+    {
+        var parque = new ParqueSolar("Parque Manga", "Ruta 5 km 12");
+
+        var excepcion = Assert.Throws<ArgumentException>(
+            () => parque.ActualizarDatos("Parque Norte", ubicacion!, null));
+
+        Assert.Equal("ubicacion", excepcion.ParamName);
+    }
+
+    [Fact]
+    public void ActualizarDatos_NombreDemasiadoLargo_LanzaArgumentException()
+    {
+        var parque = new ParqueSolar("Parque Manga", "Ruta 5 km 12");
+        var nombre = new string('a', ParqueSolar.NombreMaxLength + 1);
+
+        var excepcion = Assert.Throws<ArgumentException>(
+            () => parque.ActualizarDatos(nombre, "Ruta 8 km 20", null));
+
+        Assert.Equal("nombre", excepcion.ParamName);
+    }
+
+    [Fact]
+    public void ActualizarDatos_UbicacionDemasiadoLarga_LanzaArgumentException()
+    {
+        var parque = new ParqueSolar("Parque Manga", "Ruta 5 km 12");
+        var ubicacion = new string('b', ParqueSolar.UbicacionMaxLength + 1);
+
+        var excepcion = Assert.Throws<ArgumentException>(
+            () => parque.ActualizarDatos("Parque Norte", ubicacion, null));
+
+        Assert.Equal("ubicacion", excepcion.ParamName);
+    }
+
+    [Fact]
+    public void ActualizarDatos_CapacidadNegativa_LanzaArgumentOutOfRangeException()
+    {
+        var parque = new ParqueSolar("Parque Manga", "Ruta 5 km 12");
+
+        var excepcion = Assert.Throws<ArgumentOutOfRangeException>(
+            () => parque.ActualizarDatos("Parque Norte", "Ruta 8 km 20", -1m));
+
+        Assert.Equal("capacidadEstimadaMW", excepcion.ParamName);
+    }
+
+    [Fact]
+    public void ActualizarDatos_NoModificaElIdNiLaFechaDeCreacion()
+    {
+        var parque = new ParqueSolar("Parque Manga", "Ruta 5 km 12");
+        var idOriginal = parque.Id;
+        var fechaCreacionOriginal = parque.FechaCreacion;
+
+        parque.ActualizarDatos("Parque Norte", "Ruta 8 km 20", 10m);
+
+        Assert.Equal(idOriginal, parque.Id);
+        Assert.Equal(fechaCreacionOriginal, parque.FechaCreacion);
+    }
 }

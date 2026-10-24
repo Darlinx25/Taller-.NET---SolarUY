@@ -22,6 +22,7 @@ Requerimientos abiertos:
 | Requerimiento | Descripción | Estado |
 | --- | --- | --- |
 | `req001_alta_parque_solar` | Alta de parque solar (Administrador) | Implementado |
+| `req002_gestion_parques` | Detalle, edicion y baja de parques solares (Administrador) | Implementado |
 
 Reglas de uso (definidas en `/agents/rules/6_flujo_trabajo_ia.md`):
 

@@ -27,10 +27,31 @@ public class ParqueSolarRepository : IParqueSolarRepository
     }
 
     /// <inheritdoc />
-    public Task<bool> ExisteNombreAsync(string nombre, CancellationToken cancellationToken = default)
+    public Task<bool> ExisteNombreAsync(
+        string nombre,
+        Guid? parqueIdExcluido = null,
+        CancellationToken cancellationToken = default)
     {
         return _contexto.ParquesSolares
-            .AnyAsync(parque => parque.Nombre == nombre, cancellationToken);
+            .AnyAsync(
+                parque => parque.Nombre == nombre
+                    && (parqueIdExcluido == null || parque.Id != parqueIdExcluido),
+                cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<ParqueSolar?> ObtenerPorIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return _contexto.ParquesSolares
+            .FirstOrDefaultAsync(parque => parque.Id == id, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public void Eliminar(ParqueSolar parque)
+    {
+        ArgumentNullException.ThrowIfNull(parque);
+
+        _contexto.ParquesSolares.Remove(parque);
     }
 
     /// <inheritdoc />

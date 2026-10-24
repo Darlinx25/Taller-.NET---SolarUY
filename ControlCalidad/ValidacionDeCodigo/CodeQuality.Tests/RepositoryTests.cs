@@ -23,9 +23,8 @@ public class RepositoryTests
     {
         IArchRule rule = Classes()
             .That().HaveNameEndingWith("Repository")
-            .Should().ResideInNamespace(InfrastructureNamespace)
-            .Because("Las implementaciones concretas de los repositorios deben estar en la capa de Infraestructura.")
-            .WithoutRequiringPositiveResults();
+            .Should().ResideInNamespaceMatching(InfrastructureNamespace)
+            .Because("Las implementaciones concretas de los repositorios deben estar en la capa de Infraestructura.");
 
         rule.Check(_architecture);
     }
@@ -41,8 +40,7 @@ public class RepositoryTests
         IArchRule rule = Interfaces()
             .That().HaveNameEndingWith("Repository")
             .Should().HaveNameStartingWith("I")
-            .Because("Las interfaces de repositorios deben seguir la convención 'IRepository'.")
-            .WithoutRequiringPositiveResults();
+            .Because("Las interfaces de repositorios deben seguir la convención 'IRepository'.");
 
         rule.Check(_architecture);
     }

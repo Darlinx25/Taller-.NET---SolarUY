@@ -24,8 +24,7 @@ public class NamingConventionTests
     {
         IArchRule rule = Interfaces()
             .Should().HaveNameStartingWith("I")
-            .Because("Por convención en C#, todas las interfaces deben comenzar con la letra 'I'.")
-            .WithoutRequiringPositiveResults();
+            .Because("Por convención en C#, todas las interfaces deben comenzar con la letra 'I'.");
 
         rule.Check(_architecture);
     }
@@ -42,8 +41,7 @@ public class NamingConventionTests
         IArchRule rule = Classes()
             .That().AreAssignableTo(typeof(Exception))
             .Should().HaveNameEndingWith("Exception")
-            .Because("Todas las clases que representan un error o excepción deben terminar con el sufijo 'Exception'.")
-            .WithoutRequiringPositiveResults();
+            .Because("Todas las clases que representan un error o excepción deben terminar con el sufijo 'Exception'.");
 
         rule.Check(_architecture);
     }
@@ -58,7 +56,7 @@ public class NamingConventionTests
     public void ApplicationServices_ShouldEndWithService()
     {
         IArchRule rule = Classes()
-            .That().ResideInNamespace(ApplicationNamespace)
+            .That().ResideInNamespaceMatching(ApplicationNamespace)
             // .And().AreAssignableTo("IService") 
             .Should().HaveNameEndingWith("Service")
             .Because("Los casos de uso o coordinadores en la capa de Aplicación deben identificarse claramente con el sufijo 'Service'.");

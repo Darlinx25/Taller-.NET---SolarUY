@@ -73,6 +73,25 @@ public class ParqueSolar
     public DateTime FechaCreacion { get; private set; }
 
     /// <summary>
+    /// Actualiza los datos editables del parque solar, manteniendo su identidad y fecha de alta.
+    /// </summary>
+    /// <param name="nombre">Nuevo nombre único del parque solar.</param>
+    /// <param name="ubicacion">Nueva ubicación geográfica o dirección.</param>
+    /// <param name="capacidadEstimadaMW">Nueva capacidad total estimada en megavatios (opcional).</param>
+    /// <exception cref="ArgumentException">Si el nombre o la ubicación son inválidos.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Si la capacidad es negativa.</exception>
+    public void ActualizarDatos(string nombre, string ubicacion, decimal? capacidadEstimadaMW)
+    {
+        ValidarNombre(nombre);
+        ValidarUbicacion(ubicacion);
+        ValidarCapacidad(capacidadEstimadaMW);
+
+        Nombre = nombre.Trim();
+        Ubicacion = ubicacion.Trim();
+        CapacidadEstimadaMW = capacidadEstimadaMW;
+    }
+
+    /// <summary>
     /// Actualiza la capacidad total estimada del parque solar.
     /// </summary>
     /// <param name="capacidadEstimadaMW">Nueva capacidad en megavatios.</param>
