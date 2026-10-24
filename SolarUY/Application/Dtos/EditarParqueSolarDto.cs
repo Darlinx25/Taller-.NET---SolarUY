@@ -12,7 +12,8 @@ public class EditarParqueSolarDto
     /// <summary>
     /// Identificador del parque solar a editar.
     /// </summary>
-    public Guid Id { get; set; }
+    [Required]
+public Guid Id { get; set; }
 
     /// <summary>
     /// Nombre único del parque solar.

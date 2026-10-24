@@ -73,4 +73,4 @@ app.MapGet("/health", async (SolarUYDbContext contexto, CancellationToken cancel
             statusCode: StatusCodes.Status503ServiceUnavailable);
 });
 
-app.Run();
+await app.RunAsync();
