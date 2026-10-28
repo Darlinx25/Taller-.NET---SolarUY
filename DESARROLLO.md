@@ -72,7 +72,6 @@ MYSQL_PORT=3307
 SONAR_TOKEN=
 SONAR_PROJECT_KEY=SolarUY
 SONAR_HOST_URL=http://localhost:9000
-SONAR_HOST_URL_CONTAINER=http://host.docker.internal:9000
 SONAR_PORT=9000
 
 LOCAL_UID=1000
@@ -204,9 +203,9 @@ Primer uso (una vez por maquina):
    .\ControlCalidad\SonarQube\analizar.ps1
    ```
 
-El script levanta el stack de calidad, espera a que el servidor responda y lanza el escaner
-(`dotnet-sonarscanner`) dentro del contenedor `tools`. Los resultados quedan en
-<http://localhost:9000/projects>.
+El script levanta el stack de calidad, espera a que el servidor responda con estado `UP` y lanza
+el escaner (`dotnet-sonarscanner`) en un contenedor efimero `solaruy-tools` conectado a la red
+interna del stack de calidad. Los resultados quedan en <http://localhost:9000/projects>.
 
 > El token **nunca** se sube al repositorio: `.env` esta en `.gitignore` y `.env.example` lo
 > deja vacio a proposito.

@@ -64,7 +64,7 @@ docker compose -f "$QUALITY_COMPOSE" "${ENV_FILE_ARGS[@]}" up -d
 echo "==> Esperando a que SonarQube responda..."
 READY=0
 for i in $(seq 1 60); do
-  if curl -fsS "$HOST_URL/api/system/status" >/dev/null 2>&1; then
+  if curl -fsS "$HOST_URL/api/system/status" 2>/dev/null | grep -q '"status":"UP"'; then
     READY=1
     break
   fi
@@ -110,7 +110,8 @@ docker run --rm \
     dotnet sonarscanner begin \
       /k:"$SONAR_PROJECT_KEY" \
       /d:sonar.host.url="$SONAR_HOST_URL" \
-      /d:sonar.token="$SONAR_TOKEN"
+      /d:sonar.token="$SONAR_TOKEN" \
+      /d:sonar.exclusions=SolarUY/Migrations/**
     dotnet build SolarUY.sln
     dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"'
 

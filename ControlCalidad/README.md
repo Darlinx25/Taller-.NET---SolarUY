@@ -23,6 +23,7 @@ Requerimientos abiertos:
 | --- | --- | --- |
 | `req001_alta_parque_solar` | Alta de parque solar (Administrador) | Implementado |
 | `req002_gestion_parques` | Detalle, edicion y baja de parques solares (Administrador) | Implementado |
+| `req003_nodos_inversores` | Nodos e inversores por parque solar (Administrador) | Implementado |
 
 Reglas de uso (definidas en `/agents/rules/6_flujo_trabajo_ia.md`):
 
@@ -88,8 +89,9 @@ Configuración (compose + scripts) para levantar y utilizar **SonarQube**:
 - Detecta **Code Smells** (complejidad ciclomática, clases gigantes, etc.).
 
 Funciona como un **stack separado** del runtime (`docker-compose.yml` propio con `sonarqube` y
-`sonarqube-db`): es tooling de calidad, no aplicación. El escáner corre dentro del contenedor de
-herramientas (`tools`) del stack de runtime y alcanza al servidor por `host.docker.internal:9000`.
+`sonarqube-db`): es tooling de calidad, no aplicación. El escáner corre en un contenedor efímero
+`solaruy-tools` dentro de la red interna del stack de calidad y alcanza al servidor como
+`http://sonarqube:9000`.
 
 Detalle paso a paso (token personal, script para Linux/macOS y para Windows):
 [SonarQube/README.md](SonarQube/README.md).

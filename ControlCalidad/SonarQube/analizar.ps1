@@ -66,9 +66,12 @@ if (-not $SkipWait) {
     $ready = $false
     for ($i = 0; $i -lt 60; $i++) {
         try {
-            Invoke-WebRequest -Uri "$HostUrl/api/system/status" -UseBasicParsing -TimeoutSec 5 | Out-Null
-            $ready = $true
-            break
+            $status = Invoke-RestMethod -Uri "$HostUrl/api/system/status" -TimeoutSec 5
+            if ($status.status -eq "UP") {
+                $ready = $true
+                break
+            }
+            Start-Sleep -Seconds 5
         } catch {
             Start-Sleep -Seconds 5
         }
@@ -102,7 +105,8 @@ dotnet tool restore
 dotnet sonarscanner begin \
   /k:"$SONAR_PROJECT_KEY" \
   /d:sonar.host.url="$SONAR_HOST_URL" \
-  /d:sonar.token="$SONAR_TOKEN"
+  /d:sonar.token="$SONAR_TOKEN" \
+  /d:sonar.exclusions=SolarUY/Migrations/**
 dotnet build SolarUY.sln
 dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
 '@

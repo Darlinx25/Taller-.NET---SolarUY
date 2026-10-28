@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SolarUY.Application.Dtos;
 
@@ -13,7 +14,8 @@ public class EditarParqueSolarDto
     /// Identificador del parque solar a editar.
     /// </summary>
     [Required]
-public Guid Id { get; set; }
+    [JsonRequired]
+    public Guid Id { get; set; }
 
     /// <summary>
     /// Nombre único del parque solar.

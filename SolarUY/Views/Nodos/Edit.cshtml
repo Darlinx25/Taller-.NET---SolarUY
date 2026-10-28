@@ -1,0 +1,59 @@
+@model SolarUY.Application.Dtos.EditarNodoInversorDto
+@{
+    ViewData["Title"] = "Editar nodo e inversor";
+}
+
+<h1 class="h3 mb-4">Editar nodo e inversor - @ViewBag.ParqueSolarNombre</h1>
+
+<form asp-action="Edit" method="post">
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="ParqueSolarId" />
+    <input type="hidden" asp-for="InversorId" />
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <h2 class="h5 mt-3">Datos del nodo</h2>
+    <div class="mb-3">
+        <label asp-for="Codigo" class="form-label"></label>
+        <input asp-for="Codigo" class="form-control" />
+        <span asp-validation-for="Codigo" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Estado" class="form-label"></label>
+        <input asp-for="Estado" class="form-control" />
+        <span asp-validation-for="Estado" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Descripcion" class="form-label"></label>
+        <textarea asp-for="Descripcion" class="form-control"></textarea>
+        <span asp-validation-for="Descripcion" class="text-danger"></span>
+    </div>
+
+    <h2 class="h5 mt-4">Datos del inversor</h2>
+    <div class="mb-3">
+        <label asp-for="InversorMarca" class="form-label"></label>
+        <input asp-for="InversorMarca" class="form-control" />
+        <span asp-validation-for="InversorMarca" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="InversorModelo" class="form-label"></label>
+        <input asp-for="InversorModelo" class="form-control" />
+        <span asp-validation-for="InversorModelo" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="InversorNumeroSerie" class="form-label"></label>
+        <input asp-for="InversorNumeroSerie" class="form-control" />
+        <span asp-validation-for="InversorNumeroSerie" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="InversorPotenciaNominalkW" class="form-label"></label>
+        <input asp-for="InversorPotenciaNominalkW" class="form-control" />
+        <span asp-validation-for="InversorPotenciaNominalkW" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a class="btn btn-secondary" asp-action="Index" asp-route-parqueId="@Model.ParqueSolarId">Cancelar</a>
+</form>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

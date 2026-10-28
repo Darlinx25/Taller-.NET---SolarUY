@@ -19,6 +19,78 @@ namespace SolarUY.Migrations
                 .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
+            modelBuilder.Entity("SolarUY.Domain.Entities.Inversor", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Marca")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Modelo")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<Guid?>("NodoId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("NumeroSerie")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<decimal?>("PotenciaNominalkW")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NodoId")
+                        .IsUnique();
+
+                    b.ToTable("Inversores", (string)null);
+                });
+
+            modelBuilder.Entity("SolarUY.Domain.Entities.Nodo", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("ParqueSolarId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParqueSolarId", "Codigo")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Nodos_ParqueSolarId_Codigo");
+
+                    b.ToTable("Nodos", (string)null);
+                });
+
             modelBuilder.Entity("SolarUY.Domain.Entities.ParqueSolar", b =>
                 {
                     b.Property<Guid>("Id")
@@ -48,6 +120,33 @@ namespace SolarUY.Migrations
                         .HasDatabaseName("IX_ParquesSolares_Nombre");
 
                     b.ToTable("ParquesSolares", (string)null);
+                });
+
+            modelBuilder.Entity("SolarUY.Domain.Entities.Inversor", b =>
+                {
+                    b.HasOne("SolarUY.Domain.Entities.Nodo", "Nodo")
+                        .WithOne("Inversor")
+                        .HasForeignKey("SolarUY.Domain.Entities.Inversor", "NodoId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Nodo");
+                });
+
+            modelBuilder.Entity("SolarUY.Domain.Entities.Nodo", b =>
+                {
+                    b.HasOne("SolarUY.Domain.Entities.ParqueSolar", "ParqueSolar")
+                        .WithMany()
+                        .HasForeignKey("ParqueSolarId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ParqueSolar");
+                });
+
+            modelBuilder.Entity("SolarUY.Domain.Entities.Nodo", b =>
+                {
+                    b.Navigation("Inversor")
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

@@ -22,6 +22,16 @@ public class SolarUYDbContext : DbContext
     /// </summary>
     public DbSet<ParqueSolar> ParquesSolares => Set<ParqueSolar>();
 
+    /// <summary>
+    /// Nodos registrados en el sistema.
+    /// </summary>
+    public DbSet<Nodo> Nodos => Set<Nodo>();
+
+    /// <summary>
+    /// Inversores registrados en el sistema.
+    /// </summary>
+    public DbSet<Inversor> Inversores => Set<Inversor>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

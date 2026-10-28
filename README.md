@@ -22,8 +22,8 @@
 | --- | --- | --- | --- | --- |
 | Seguridad | Login OIDC | Autenticacion externa OpenID Connect | Publico | Pendiente (stub de desarrollo activo) |
 | Seguridad | Permisos | Control de roles (Admin / Operador) | Sistema | En curso (stub de desarrollo activo) |
-| Parques | Parques | Gestion CRUD de parques solares | Admin | **En curso (Alta, detalle, edicion y baja implementadas - Iteraciones 1 y 2)** |
-| Parques | Nodos | Configuracion de nodos e inversores | Admin | Pendiente |
+| Parques | Parques | Gestion CRUD de parques solares | Admin | Listo |
+| Parques | Nodos | Configuracion de nodos e inversores | Admin | Listo |
 | Parques | Paneles | Registro de paneles fotovoltaicos | Admin | Pendiente |
 | Mantenimiento | Tareas | Registro y seguimiento de tareas | Admin/Personal | Pendiente |
 | Monitoreo | Dashboard | Telemetria de energia en vivo via SignalR | Todos | Pendiente |
@@ -31,27 +31,6 @@
 | Historicos | Reportes | Metricas de energia por dia/mes/ano | Todos | Pendiente |
 | Historicos | Consulta IA | Estado del sistema en lenguaje natural | Todos | Pendiente |
 | Simulacion | Mock Inversor | Simulacion de telemetria y sensores ARM | Admin | Pendiente |
-
-## Iteracion 1 - Alta de parque solar (req001)
-
-Se implemento el caso de uso **"Como Administrador del sistema SolarUY, quiero poder registrar un nuevo Parque Solar"**:
-
-- Dominio: entidad `ParqueSolar` con validaciones propias (nombre obligatorio y unico, ubicacion obligatoria, capacidad estimada opcional y no negativa).
-- Aplicacion: caso de uso `ParqueSolarService.CrearParqueSolarAsync` + DTO `CrearParqueSolarDto` con DataAnnotations.
-- Infraestructura: `SolarUYDbContext` sobre MySQL 8.4, `ParqueSolarRepository` e indice unico en base de datos sobre `Nombre`.
-- Presentacion: `ParquesSolaresController` restringido al rol `Administrador`, con vistas Razor + Bootstrap y validacion cliente con jQuery.
-- Calidad: pruebas unitarias xUnit del dominio, guardarrailes ArchUnitNET y analisis SonarQube.
-
-## Iteracion 2 - Gestion de parques solares (req002)
-
-Se completo la administracion de los parques ya registrados:
-
-- Dominio: metodo `ParqueSolar.ActualizarDatos(...)` y excepcion `ParqueSolarNoEncontradoException`.
-- Aplicacion: `ObtenerParqueAsync`, `EditarParqueSolarAsync` y `EliminarParqueSolarAsync`, con `EditarParqueSolarDto`.
-- Infraestructura: busqueda por identificador, eliminacion y validacion de nombre duplicado excluyendo el propio parque.
-- Presentacion: acciones `Details`, `Edit` y `Delete` con vistas Razor + Bootstrap y confirmacion de baja.
-- Calidad: pruebas xUnit de la actualizacion del dominio, guardarrailes ArchUnitNET y analisis SonarQube.
-- Base de datos: sin cambios de esquema, por lo que no se genero una nueva migracion.
 
 ## Arquitectura
 

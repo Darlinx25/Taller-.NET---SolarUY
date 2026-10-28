@@ -96,15 +96,10 @@ services:
       DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
       DOTNET_NOLOGO: "1"
       ASPNETCORE_ENVIRONMENT: Development
-      SONAR_TOKEN: "${SONAR_TOKEN:-}"
-      SONAR_HOST_URL: "${SONAR_HOST_URL_CONTAINER:-http://host.docker.internal:9000}"
-      SONAR_PROJECT_KEY: "${SONAR_PROJECT_KEY:-SolarUY}"
       ConnectionStrings__SolarUYDb: "Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-SolarUY};User=${MYSQL_APP_USER:-solaruy};Password=${MYSQL_APP_PASSWORD};"
     volumes:
       - .:/app
       - ./.docker-cache/nuget:/nuget
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     networks:
       - solaruy
 

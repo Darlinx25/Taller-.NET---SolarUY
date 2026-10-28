@@ -1,6 +1,6 @@
 # Entorno SonarQube Local para .NET
 
-Esta carpeta contiene la configuración necesaria para levantar un servidor de SonarQube local y analizar el proyecto SolarUY **sin instalar SDKs de manera global en la máquina host**: el escáner corre dentro del contenedor de herramientas (`tools`) del stack de runtime.
+Esta carpeta contiene la configuración necesaria para levantar un servidor de SonarQube local y analizar el proyecto SolarUY **sin instalar SDKs de manera global en la máquina host**: el escáner se ejecuta en un contenedor de herramientas (`solaruy-tools`) conectado a la red interna del stack de calidad.
 
 > El servidor de SonarQube es *tooling de calidad*, no aplicación: por eso tiene su propio
 > `docker-compose.yml` y no se despliega junto con SolarUY.
@@ -64,13 +64,14 @@ Los scripts son los mismos para todos: `analizar.sh` (Linux/Mac) y `analizar.ps1
 
 1. Verifica que exista `SONAR_TOKEN` (en el entorno o en el `.env` de la raíz) y avisa si falta.
 2. Levanta el stack de calidad (`sonarqube` + `sonarqube-db`) si no está arriba.
-3. Espera a que el servidor responda en `/api/system/status`.
-4. Lanza el escáner dentro del contenedor de herramientas:
+3. Espera a que el servidor responda en `/api/system/status` con estado `UP`.
+4. Lanza el escáner en un contenedor efímero `solaruy-tools` dentro de la red del stack de calidad:
    ```bash
-   dotnet sonarscanner begin /k:"$SONAR_PROJECT_KEY" /d:sonar.host.url=... /d:sonar.token=...
-   dotnet build
-   dotnet sonarscanner end /d:sonar.token=...
+   docker run --rm --network solaruy-quality_quality \
+     -e SONAR_HOST_URL=http://sonarqube:9000 ...
+     solaruy-tools
    ```
+   Dentro del contenedor ejecuta `dotnet sonarscanner begin`, `dotnet build` y `dotnet sonarscanner end`.
 5. Muestra la URL con los resultados.
 
 Variables opcionales (en el `.env` de la raíz):
@@ -79,8 +80,7 @@ Variables opcionales (en el `.env` de la raíz):
 | --- | --- | --- |
 | `SONAR_TOKEN` | (vacío) | Token personal, obligatorio |
 | `SONAR_PROJECT_KEY` | `SolarUY` | Clave del proyecto en SonarQube |
-| `SONAR_HOST_URL` | `http://localhost:9000` | URL del servidor **desde el host** (la usa el script para esperar y para el mensaje final) |
-| `SONAR_HOST_URL_CONTAINER` | `http://host.docker.internal:9000` | URL del servidor **desde el contenedor** (la usa el escáner) |
+| `SONAR_HOST_URL` | `http://localhost:9000` | URL del servidor **desde el host** (la usa el script para esperar y para el mensaje final); el escáner usa `http://sonarqube:9000` dentro de la red de calidad |
 
 ---
 

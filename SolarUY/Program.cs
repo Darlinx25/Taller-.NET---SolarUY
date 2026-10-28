@@ -25,6 +25,8 @@ builder.Services.AddDbContext<SolarUYDbContext>(options =>
 // Inyección de dependencias: la Presentación conoce Application, nunca Infrastructure.
 builder.Services.AddScoped<IParqueSolarRepository, ParqueSolarRepository>();
 builder.Services.AddScoped<IParqueSolarService, ParqueSolarService>();
+builder.Services.AddScoped<INodoRepository, NodoRepository>();
+builder.Services.AddScoped<INodoService, NodoService>();
 
 // Autenticación por cookies.
 // El proveedor real (OpenIddict / OIDC) se incorpora en una iteración posterior;

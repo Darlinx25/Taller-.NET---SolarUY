@@ -1,0 +1,56 @@
+@model IReadOnlyList<SolarUY.Application.Dtos.NodoDto>
+@{
+    var parque = ViewBag.Parque as SolarUY.Application.Dtos.ParqueSolarDto;
+    ViewData["Title"] = "Nodos e inversores";
+}
+
+<h1 class="h3 mb-3">Nodos e inversores - @parque?.Nombre</h1>
+
+@if (TempData["Mensaje"] is string mensaje)
+{
+    <div class="alert alert-success">@mensaje</div>
+}
+@if (TempData["Error"] is string error)
+{
+    <div class="alert alert-danger">@error</div>
+}
+
+<div class="mb-3">
+    <a class="btn btn-primary" asp-action="Create" asp-route-parqueId="@parque?.Id">Nuevo nodo e inversor</a>
+    <a class="btn btn-secondary" asp-controller="ParquesSolares" asp-action="Details" asp-route-id="@parque?.Id">Volver al parque</a>
+</div>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Código</th>
+            <th>Estado</th>
+            <th>Inversor</th>
+            <th>Descripción</th>
+            <th>Fecha de creación</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var item in Model)
+    {
+        <tr>
+            <td>@item.Codigo</td>
+            <td>@item.Estado</td>
+            <td>@(item.Inversor is null ? "-" : $"{item.Inversor.Marca} {item.Inversor.Modelo} ({item.Inversor.NumeroSerie})")</td>
+            <td>@(string.IsNullOrWhiteSpace(item.Descripcion) ? "-" : item.Descripcion)</td>
+            <td>@item.FechaCreacion.ToString("yyyy-MM-dd HH:mm")</td>
+            <td class="text-end">
+                <a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@item.Id">Detalle</a>
+                <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@item.Id">Editar</a>
+                <a class="btn btn-sm btn-outline-danger" asp-action="Delete" asp-route-id="@item.Id">Eliminar</a>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>
+
+@if (!Model.Any())
+{
+    <p class="text-muted">No hay nodos registrados para este parque solar.</p>
+}

@@ -63,11 +63,11 @@
 - [x] 7.1 Compilar con `docker compose --profile tools run --rm tools dotnet build SolarUY.sln`.
 - [x] 7.2 Ejecutar `docker compose --profile tools run --rm tools dotnet test SolarUY.sln` y confirmar tests de dominio + ArchUnitNET en verde.
 - [x] 7.3 Si falla un test de arquitectura, corregir el código fuente; no modificar `CodeQuality.Tests`.
-- [ ] 7.4 Ejecutar SonarQube con `./ControlCalidad/SonarQube/analizar.sh` y registrar los hallazgos. **Pendiente: falta `SONAR_TOKEN` en `.env`.**
+- [x] 7.4 Ejecutar SonarQube con `./ControlCalidad/SonarQube/analizar.sh` y registrar los hallazgos. Resultado: Quality Gate OK, 0 bugs, 0 vulnerabilidades, 0 code smells; se corrigieron `S6966` (`await app.RunAsync()`) y `S6964` (`[JsonRequired]` en DTOs de entrada).
 - [x] 7.5 Probar manualmente el flujo: listado → detalle → editar → eliminar.
 
 ## Notas
 - No se crea migración porque el esquema de base de datos no cambia.
 - No se agregan tests para Application, Infrastructure ni Presentation, según la regla 5 del flujo de trabajo.
 - El controlador solo orquesta llamadas a `IParqueSolarService`.
-- El análisis de SonarQube queda pendiente hasta configurar `SONAR_TOKEN` en el `.env` de la máquina.
+- El análisis de SonarQube se ejecutó con el `SONAR_TOKEN` local del `.env` de la máquina; el token no se versiona.

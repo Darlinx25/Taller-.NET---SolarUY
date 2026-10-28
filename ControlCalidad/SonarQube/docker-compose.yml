@@ -5,10 +5,10 @@ name: solaruy-quality
 # con ella y no se escala. Por eso vive en un compose aparte.
 #
 #   docker compose -f ControlCalidad/SonarQube/docker-compose.yml up -d
-#   docker compose run --rm tools bash ./ControlCalidad/SonarQube/analizar.sh
+#   ./ControlCalidad/SonarQube/analizar.sh
 #
-# El scanner corre en el stack de runtime (servicio "tools") y llega al server
-# por host.docker.internal:9000.
+# El scanner corre en un contenedor efimero (imagen solaruy-tools) conectado a
+# la red de este stack y llega al server como http://sonarqube:9000.
 
 services:
   sonarqube:

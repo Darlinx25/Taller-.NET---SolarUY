@@ -1,0 +1,22 @@
+@model SolarUY.Application.Dtos.NodoDetalleDto
+@{
+    ViewData["Title"] = "Eliminar nodo";
+}
+
+<h1 class="h3 mb-4">Eliminar nodo</h1>
+<p class="text-danger">¿Está seguro de que desea eliminar este nodo y su inversor asociado? Esta acción es definitiva.</p>
+
+<dl class="row">
+    <dt class="col-sm-3">Código</dt>
+    <dd class="col-sm-9">@Model.Codigo</dd>
+    <dt class="col-sm-3">Parque solar</dt>
+    <dd class="col-sm-9">@Model.ParqueSolarNombre</dd>
+    <dt class="col-sm-3">Inversor</dt>
+    <dd class="col-sm-9">@($"{Model.Inversor?.Marca} {Model.Inversor?.Modelo} ({Model.Inversor?.NumeroSerie})")</dd>
+</dl>
+
+<form asp-action="Delete" method="post">
+    <input type="hidden" asp-for="Id" />
+    <button type="submit" class="btn btn-danger">Eliminar</button>
+    <a class="btn btn-secondary" asp-action="Index" asp-route-parqueId="@Model.ParqueSolarId">Cancelar</a>
+</form>
