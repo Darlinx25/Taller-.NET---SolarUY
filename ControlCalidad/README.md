@@ -8,7 +8,9 @@ El enfoque utilizado combina el análisis de métricas estáticas con validacion
 
 ## 1. Metodología SDD + prompting (`/prompting`)
 
-Por cada requerimiento hay una carpeta con los tres artefactos de la metodología, en este orden:
+El flujo completo, los gates de aprobación y la convención de nombres están en
+[`prompting/README.md`](prompting/README.md). Por cada requerimiento hay una
+carpeta con los tres artefactos de la metodología, en este orden:
 
 ```
 prompting/<requerimiento>/
@@ -17,19 +19,28 @@ prompting/<requerimiento>/
 └── tasks.md          # lista de tareas verificables para implementar la spec
 ```
 
-Requerimientos abiertos:
+Las plantillas para requerimientos nuevos están en
+[`prompting/_plantillas/`](prompting/_plantillas/). Los documentos de req001 a
+req004 no se reescriben con las plantillas.
+
+Requerimientos:
 
 | Requerimiento | Descripción | Estado |
 | --- | --- | --- |
 | `req001_alta_parque_solar` | Alta de parque solar (Administrador) | Implementado |
 | `req002_gestion_parques` | Detalle, edicion y baja de parques solares (Administrador) | Implementado |
 | `req003_nodos_inversores` | Nodos e inversores por parque solar (Administrador) | Implementado |
+| `req004_gestion_paneles` | Paneles fotovoltaicos por nodo (Administrador) | Planificado |
+
+Estados: **Planificado** (solo artefactos), **En progreso** (implementación
+iniciada) e **Implementado** (cerrado con tests y análisis estático).
 
 Reglas de uso (definidas en `/agents/rules/6_flujo_trabajo_ia.md`):
 
-1. No se empieza a codear sin `requirements.md`, `specs.md` y `tasks.md` revisados.
-2. Cada cambio en el código se valida ejecutando los tests (sección 2).
-3. Si un test arquitectónico falla, se corrige el **código**, nunca el test.
+1. No se empieza a codear sin `requirements.md`, `specs.md` y `tasks.md` revisados y aprobados.
+2. `specs.md` se genera con la skill `sdd-generar-specs` y `tasks.md` con `sdd-generar-tasks`.
+3. Cada cambio en el código se valida ejecutando los tests (sección 2).
+4. Si un test arquitectónico falla, se corrige el **código**, nunca el test.
 
 ---
 

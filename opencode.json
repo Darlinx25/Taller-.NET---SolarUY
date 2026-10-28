@@ -1,0 +1,14 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "ControlCalidad/.agents/rules/1_clean_architecture.md",
+    "ControlCalidad/.agents/rules/2_principios_solid.md",
+    "ControlCalidad/.agents/rules/3_convenciones_nomenclatura.md",
+    "ControlCalidad/.agents/rules/4_modelado_dominio.md",
+    "ControlCalidad/.agents/rules/5_capa_presentacion.md",
+    "ControlCalidad/.agents/rules/6_flujo_trabajo_ia.md"
+  ],
+  "skills": {
+    "paths": ["ControlCalidad/.agents/skills"]
+  }
+}

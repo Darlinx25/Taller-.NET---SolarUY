@@ -8,11 +8,11 @@ Para garantizar esto, **DEBES** seguir este flujo de trabajo de manera ineludibl
 Antes de escribir cualquier bloque de código C#, debes tener en cuenta las reglas estáticas y de diseño definidas en los otros archivos de esta carpeta (`1_clean_architecture.md`, `2_principios_solid.md`, `3_convenciones_nomenclatura.md`, `4_modelado_dominio.md`, `5_capa_presentacion.md`).
 
 ## 2. Metodología Spec-Driven Development (SDD)
-Antes de implementar una funcionalidad, el trabajo se planifica con tres artefactos, en este orden, dentro de una carpeta por requerimiento (ej. `ControlCalidad/prompting/req001_alta_parque_solar/`):
+Antes de implementar una funcionalidad, el trabajo se planifica con tres artefactos, en este orden, dentro de una carpeta por requerimiento (ej. `ControlCalidad/prompting/req001_alta_parque_solar/`). La carpeta se crea a partir de las plantillas de `ControlCalidad/prompting/_plantillas/` y el detalle del flujo está en `ControlCalidad/prompting/README.md`:
 1. **`requirements.md`** — qué se necesita (historia de usuario, criterios de aceptación y reglas de negocio), en lenguaje del negocio.
-2. **`specs.md`** — cómo se resuelve técnicamente, dividido por capas (Domain, Application, Infrastructure, Presentation).
-3. **`tasks.md`** — lista de tareas verificables para implementar la spec.
-No comiences a codear sin haber revisado la spec y las tareas del requerimiento. Si algo no está especificado, **PREGUNTA** antes de inventarlo.
+2. **`specs.md`** — cómo se resuelve técnicamente, dividido por capas (Domain, Application, Infrastructure, Presentation). Se genera con la skill `sdd-generar-specs` a partir del requerimiento y la plantilla.
+3. **`tasks.md`** — lista de tareas verificables para implementar la spec. Se genera con la skill `sdd-generar-tasks` a partir de la spec, la plantilla y el código existente.
+Cada artefacto requiere aprobación humana antes de pasar al siguiente. No comiences a codear sin haber revisado la spec y las tareas del requerimiento. Si algo no está especificado, **PREGUNTA** antes de inventarlo.
 
 ## 3. Auto-Validación Continua (Ejecución de Tests)
 No asumas que tu código es perfecto. Cada vez que crees, modifiques o refactorices código (especialmente si agregas nuevas dependencias, clases, repositorios o servicios), tienes la **OBLIGACIÓN** de verificar que no has roto la arquitectura.
