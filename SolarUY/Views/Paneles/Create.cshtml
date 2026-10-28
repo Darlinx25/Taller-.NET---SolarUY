@@ -1,0 +1,61 @@
+@model SolarUY.Application.Dtos.CrearPanelDto
+@{
+    var nodo = ViewBag.Nodo as SolarUY.Application.Dtos.NodoDetalleDto;
+    ViewData["Title"] = "Nuevo panel";
+}
+
+<h1 class="h3 mb-4">Nuevo panel - @nodo?.Codigo</h1>
+
+@if (nodo is not null)
+{
+    <p class="text-muted">Parque solar: @nodo.ParqueSolarNombre</p>
+}
+
+<form asp-action="Create" method="post">
+    <input type="hidden" asp-for="NodoId" />
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="mb-3">
+        <label asp-for="CodigoSerie" class="form-label"></label>
+        <input asp-for="CodigoSerie" class="form-control" />
+        <span asp-validation-for="CodigoSerie" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Marca" class="form-label"></label>
+        <input asp-for="Marca" class="form-control" />
+        <span asp-validation-for="Marca" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Modelo" class="form-label"></label>
+        <input asp-for="Modelo" class="form-control" />
+        <span asp-validation-for="Modelo" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="PotenciaWp" class="form-label"></label>
+        <input asp-for="PotenciaWp" class="form-control" step="0.01" />
+        <span asp-validation-for="PotenciaWp" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="FechaInstalacion" class="form-label"></label>
+        <input asp-for="FechaInstalacion" class="form-control" />
+        <span asp-validation-for="FechaInstalacion" class="text-danger"></span>
+        <div class="form-text">Opcional.</div>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Observaciones" class="form-label"></label>
+        <textarea asp-for="Observaciones" class="form-control"></textarea>
+        <span asp-validation-for="Observaciones" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a class="btn btn-secondary" asp-action="Index" asp-route-nodoId="@Model.NodoId">Cancelar</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

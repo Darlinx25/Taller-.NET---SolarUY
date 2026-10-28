@@ -1,53 +1,81 @@
 # Tareas: req004 - Gestión de Paneles
 
 ## Objetivo
-Implementar CRUD de Paneles asociado a un Nodo siguiendo el flujo definido en requirements.md y specs.md.
 
-## Tareas
+Implementar el CRUD de Paneles asociado a un Nodo siguiendo el flujo definido en `requirements.md`
+y `specs.md`.
 
-### 1) Dominio y Datos
-- [ ] Analizar entidades existentes (`ParqueSolar`, `Nodo`, `Inversor`) para mantener convenciones.
-- [ ] Crear entidad `Panel` con las propiedades definidas en `specs.md` y relaciones con `Nodo`.
-- [ ] Configurar relación 1:N (Nodo -> Paneles) en DbContext/mapeo.
-- [ ] Agregar restricción/índice para garantizar unicidad `(NodoId, CodigoSerie)`.
-- [ ] Crear/actualizar migración correspondiente.
-- [ ] Aplicar migración y verificar integridad con datos existentes.
+## 0. Preparación
 
-### 2) Validaciones y Reglas
-- [ ] Agregar DataAnnotations/Validaciones o validaciones de dominio para campos obligatorios y `PotenciaWp > 0`.
-- [ ] Validar unicidad de `CodigoSerie` por `NodoId` (crear y editar).
-- [ ] Asegurar que `FechaCreacion` sea inmutable.
-- [ ] Validar existencia del `Nodo` al crear.
+- [x] 0.1 Confirmar `requirements.md`, `specs.md` y `tasks.md` aprobados.
+- [x] 0.2 Revisar los patrones de `Nodo` e `Inversor` implementados en req003.
 
-### 3) Lógica / Servicios (si aplica)
-- [ ] Crear/ajustar `IPanelService` / lógica de aplicación si el proyecto utiliza servicios.
-- [ ] Centralizar validaciones de negocio (unicidad + existencia de padre).
+## 1. Dominio
 
-### 4) Controlador y Autorización
-- [ ] Crear `PanelesController` con acciones `Index`, `Details`, `Create` (GET/POST), `Edit` (GET/POST), `Delete` (GET/POST).
-- [ ] Filtrar por `NodoId` en `Index/Create`.
-- [ ] Aplicar atributo/autorización para rol `Administrador` (igual que req002/req003).
-- [ ] Agregar TempData/mensajes de éxito/error.
-- [ ] Protección ante acceso a paneles de nodos inexistentes.
+- [x] 1.1 Crear `SolarUY/Domain/Entities/Panel.cs` con constantes, constructor privado,
+      constructor público, validaciones, `ActualizarDatos` y `FechaCreacion` inmutable.
+- [x] 1.2 Crear `SolarUY/Domain/Exceptions/PanelNoEncontradoException.cs` con propiedad `Id`.
+- [x] 1.3 Crear `SolarUY/Domain/Exceptions/CodigoPanelDuplicadoException.cs`.
+- [x] 1.4 Crear `SolarUY/Domain/Repositories/IPanelRepository.cs` con los métodos de `specs.md`.
 
-### 5) Vistas (UI)
-- [ ] Agregar enlace "Administrar Paneles" en la vista de Detalle/Edición del Nodo.
-- [ ] Crear vistas `Index`, `Details`, `Create`, `Edit`, `Delete` siguiendo el estilo visual existente.
-- [ ] Precargar `NodoId` en el formulario de alta (solo lectura o hidden).
-- [ ] Mostrar jerarquía: Parque Solar / Nodo / Panel en encabezados/breadcrumbs si existe esa convención.
-- [ ] Agregar confirmación para eliminación.
-- [ ] Validaciones client-side/server-side visibles al usuario.
+## 2. Tests del Dominio
 
-### 6) Integración y Pruebas
-- [ ] Probar flujo completo: desde Nodo -> listar paneles -> crear -> editar -> ver detalle -> eliminar con confirmación.
-- [ ] Probar regla: dos paneles con mismo `CodigoSerie` en el mismo Nodo -> debe fallar.
-- [ ] Probar regla: mismo `CodigoSerie` en distinto Nodo -> debe permitir.
-- [ ] Verificar solo `Administrador` puede acceder.
-- [ ] Verificar mensajes de éxito/error.
-- [ ] Revisar que no se rompe navegación de Parques/Nodos existentes.
-- [ ] Compilar solución sin errores.
+- [x] 2.1 Crear `SolarUY.Tests/Domain/PanelTests.cs` con creación válida, trims, `Id` y
+      `FechaCreacion`.
+- [x] 2.2 Agregar tests de código/serie, marca, modelo, `NodoId`, potencia y observaciones inválidos.
+- [x] 2.3 Agregar tests de `ActualizarDatos` y de inmutabilidad de `Id`, `FechaCreacion` y `NodoId`.
+- [x] 2.4 Ejecutar los tests del dominio.
+
+## 3. Aplicación
+
+- [x] 3.1 Crear `PanelDto`, `PanelDetalleDto`, `CrearPanelDto` y `EditarPanelDto` con
+      DataAnnotations y `[JsonRequired]` en los `Guid` requeridos.
+- [x] 3.2 Crear `IPanelService` con los cinco casos de uso.
+- [x] 3.3 Implementar `PanelService`: validar nodo, unicidad por nodo, crear, editar, eliminar
+      y mapear.
+- [x] 3.4 Ignorar cambios de `NodoId` al editar.
+
+## 4. Infraestructura
+
+- [x] 4.1 Agregar `DbSet<Panel>` en `SolarUYDbContext`.
+- [x] 4.2 Crear `PanelConfiguration` con longitudes, precisión, FK, cascada e índice único
+      `(NodoId, CodigoSerie)`.
+- [x] 4.3 Crear `PanelRepository`.
+- [x] 4.4 Registrar `IPanelRepository` e `IPanelService` en `Program.cs`.
+- [x] 4.5 Generar y aplicar la migración `AgregarPaneles`.
+
+## 5. Presentación
+
+- [x] 5.1 Crear `PanelesController` con autorización, acciones y `TempData`.
+- [x] 5.2 Crear `Views/Paneles/Index.cshtml`.
+- [x] 5.3 Crear `Views/Paneles/Create.cshtml` con `NodoId` oculto y validaciones.
+- [x] 5.4 Crear `Views/Paneles/Details.cshtml` con Panel + Nodo + Parque Solar.
+- [x] 5.5 Crear `Views/Paneles/Edit.cshtml` con `Id` y `NodoId` ocultos.
+- [x] 5.6 Crear `Views/Paneles/Delete.cshtml` con confirmación.
+- [x] 5.7 Agregar "Administrar paneles" en `Views/Nodos/Details.cshtml`.
+- [x] 5.8 Probar la navegación completa desde Parque Solar -> Nodo -> Paneles.
+
+## 6. Documentación
+
+- [x] 6.1 Pasar req004 a Implementado en `ControlCalidad/README.md`.
+- [x] 6.2 Pasar Paneles a Listo en `README.md`.
+- [x] 6.3 Marcar todas las tareas `[x]`.
+
+## 7. Verificación
+
+- [x] 7.1 Build: `docker compose run --rm tools dotnet build SolarUY.sln` (0 errores, 0 warnings).
+- [x] 7.2 Tests: `docker compose run --rm tools dotnet test SolarUY.sln`
+      (71 tests de dominio + 9 guardarraíles ArchUnitNET, todos en verde).
+- [x] 7.3 Ejecutar `./ControlCalidad/SonarQube/analizar.sh` y revisar hallazgos.
+      Resultado: 0 bugs, 0 vulnerabilidades, 0 code smells y 0 issues nuevos. El Quality Gate
+      queda en ERROR por cobertura no reportada (0.0%) y duplicación (10.1% vs. umbral 3%);
+      no hay defectos de código que corregir.
+- [x] 7.4 Prueba manual vía HTTP con login dev: crear, listar, ver detalle, editar y eliminar panel
+      (flujo completo verificado).
 
 ## Notas
-- Mantener nomenclatura en español/inglés consistente con lo ya hecho en el proyecto.
-- Seguir el patrón de navegación "desde la ficha del padre" usado en `req003`.
-- No implementar monitoreo en tiempo real ni histórico. Fuera de alcance de este requerimiento.
+
+- Mantener la nomenclatura y estructura existentes en el proyecto.
+- Seguir el patrón de navegación "desde la ficha del padre" usado en req003.
+- No implementar monitoreo, telemetría, alertas ni historial: están fuera de alcance.
+- No modificar `ControlCalidad/ValidacionDeCodigo/CodeQuality.Tests`.

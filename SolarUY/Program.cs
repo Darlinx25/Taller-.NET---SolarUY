@@ -27,6 +27,8 @@ builder.Services.AddScoped<IParqueSolarRepository, ParqueSolarRepository>();
 builder.Services.AddScoped<IParqueSolarService, ParqueSolarService>();
 builder.Services.AddScoped<INodoRepository, NodoRepository>();
 builder.Services.AddScoped<INodoService, NodoService>();
+builder.Services.AddScoped<IPanelRepository, PanelRepository>();
+builder.Services.AddScoped<IPanelService, PanelService>();
 
 // Autenticación por cookies.
 // El proveedor real (OpenIddict / OIDC) se incorpora en una iteración posterior;
@@ -35,8 +37,9 @@ builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.LoginPath = "/DevAuth/Login";
-        options.AccessDeniedPath = "/DevAuth/AccesoDenegado";
+        options.LoginPath = "/dev/login";
+        options.LogoutPath = "/dev/logout";
+        options.AccessDeniedPath = "/dev/denegado";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
     });

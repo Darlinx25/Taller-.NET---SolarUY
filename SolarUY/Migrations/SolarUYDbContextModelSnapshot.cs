@@ -91,6 +91,52 @@ namespace SolarUY.Migrations
                     b.ToTable("Nodos", (string)null);
                 });
 
+            modelBuilder.Entity("SolarUY.Domain.Entities.Panel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("CodigoSerie")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaInstalacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Marca")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Modelo")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<Guid>("NodoId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Observaciones")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<decimal>("PotenciaWp")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NodoId", "CodigoSerie")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Paneles_NodoId_CodigoSerie");
+
+                    b.ToTable("Paneles", (string)null);
+                });
+
             modelBuilder.Entity("SolarUY.Domain.Entities.ParqueSolar", b =>
                 {
                     b.Property<Guid>("Id")
@@ -141,6 +187,17 @@ namespace SolarUY.Migrations
                         .IsRequired();
 
                     b.Navigation("ParqueSolar");
+                });
+
+            modelBuilder.Entity("SolarUY.Domain.Entities.Panel", b =>
+                {
+                    b.HasOne("SolarUY.Domain.Entities.Nodo", "Nodo")
+                        .WithMany()
+                        .HasForeignKey("NodoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Nodo");
                 });
 
             modelBuilder.Entity("SolarUY.Domain.Entities.Nodo", b =>

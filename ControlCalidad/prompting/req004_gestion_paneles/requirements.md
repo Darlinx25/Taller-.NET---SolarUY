@@ -21,9 +21,13 @@ Como Administrador del sistema SolarUY, quiero poder administrar los paneles fot
 - Un Nodo pertenece obligatoriamente a un Parque Solar. Se debe mantener la jerarquía Parque Solar -> Nodo -> Panel.
 - El Código/Serie del Panel es obligatorio, debe tener una longitud razonable y debe ser **único dentro del mismo Nodo**. No pueden existir dos Paneles con el mismo Código/Serie para el mismo Nodo.
 - Al dar de alta se deben registrar, como mínimo: Código/Serie, Marca, Modelo, Potencia (Watt pico - Wp).
-- La Potencia (Wp) debe ser un valor numérico mayor a 0 cuando se informa.
+- La Potencia (Wp) es obligatoria y debe ser un valor numérico mayor a 0.
 - La fecha de alta/creación del Panel se registra al momento del alta y **no se modifica** al editar.
 - La baja del Panel es **física** (eliminación definitiva). Se debe solicitar confirmación al Administrador antes de ejecutar la eliminación.
 - Solo se pueden crear/editar/eliminar Paneles sobre Nodos existentes.
 - Las validaciones deben aplicarse tanto a nivel de UI como a nivel de Dominio.
 - Únicamente el rol "Administrador" puede acceder a estas operaciones.
+
+## Fuera de Alcance
+
+- Monitoreo en tiempo real, telemetría, alertas, historial y estado de falla del panel.

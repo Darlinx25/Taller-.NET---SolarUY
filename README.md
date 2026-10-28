@@ -24,7 +24,7 @@
 | Seguridad | Permisos | Control de roles (Admin / Operador) | Sistema | En curso (stub de desarrollo activo) |
 | Parques | Parques | Gestion CRUD de parques solares | Admin | Listo |
 | Parques | Nodos | Configuracion de nodos e inversores | Admin | Listo |
-| Parques | Paneles | Registro de paneles fotovoltaicos | Admin | Pendiente |
+| Parques | Paneles | Registro de paneles fotovoltaicos | Admin | Listo |
 | Mantenimiento | Tareas | Registro y seguimiento de tareas | Admin/Personal | Pendiente |
 | Monitoreo | Dashboard | Telemetria de energia en vivo via SignalR | Todos | Pendiente |
 | Monitoreo | Alertas | Deteccion de fallos en paneles | Todos | Pendiente |

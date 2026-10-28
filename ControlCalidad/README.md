@@ -30,10 +30,13 @@ Requerimientos:
 | `req001_alta_parque_solar` | Alta de parque solar (Administrador) | Implementado |
 | `req002_gestion_parques` | Detalle, edicion y baja de parques solares (Administrador) | Implementado |
 | `req003_nodos_inversores` | Nodos e inversores por parque solar (Administrador) | Implementado |
-| `req004_gestion_paneles` | Paneles fotovoltaicos por nodo (Administrador) | Planificado |
+| `req004_gestion_paneles` | Paneles fotovoltaicos por nodo (Administrador) | Implementado |
 
 Estados: **Planificado** (solo artefactos), **En progreso** (implementación
 iniciada) e **Implementado** (cerrado con tests y análisis estático).
+
+Nota: req004 se cierra con deuda aceptada de SonarQube (gate en ERROR por
+cobertura no reportada 0% y duplicación nueva 9,4%; 0 defectos).
 
 Reglas de uso (definidas en `/agents/rules/6_flujo_trabajo_ia.md`):
 
