@@ -168,6 +168,69 @@ namespace SolarUY.Migrations
                     b.ToTable("ParquesSolares", (string)null);
                 });
 
+            modelBuilder.Entity("SolarUY.Domain.Entities.TareaMantenimiento", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("AsignadoA")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("Descripcion")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<DateTime>("FechaAsignacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaFinalizacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaInicio")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaVencimiento")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Observaciones")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<Guid>("PanelId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("QuienAsigna")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("QuienCompleta")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("TipoTarea")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PanelId");
+
+                    b.ToTable("TareasMantenimiento", (string)null);
+                });
+
             modelBuilder.Entity("SolarUY.Domain.Entities.Inversor", b =>
                 {
                     b.HasOne("SolarUY.Domain.Entities.Nodo", "Nodo")
@@ -198,6 +261,17 @@ namespace SolarUY.Migrations
                         .IsRequired();
 
                     b.Navigation("Nodo");
+                });
+
+            modelBuilder.Entity("SolarUY.Domain.Entities.TareaMantenimiento", b =>
+                {
+                    b.HasOne("SolarUY.Domain.Entities.Panel", "Panel")
+                        .WithMany()
+                        .HasForeignKey("PanelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Panel");
                 });
 
             modelBuilder.Entity("SolarUY.Domain.Entities.Nodo", b =>

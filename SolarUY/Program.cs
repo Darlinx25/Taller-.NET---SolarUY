@@ -9,6 +9,7 @@ using SolarUY.Infrastructure.Repositories;
 var builder = WebApplication.CreateBuilder(args);
 
 // Servicios de la capa de Presentación (MVC).
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllersWithViews();
 
 // Capa de Infraestructura: base de datos MySQL 8.4.
@@ -29,6 +30,8 @@ builder.Services.AddScoped<INodoRepository, NodoRepository>();
 builder.Services.AddScoped<INodoService, NodoService>();
 builder.Services.AddScoped<IPanelRepository, PanelRepository>();
 builder.Services.AddScoped<IPanelService, PanelService>();
+builder.Services.AddScoped<ITareaMantenimientoRepository, TareaMantenimientoRepository>();
+builder.Services.AddScoped<ITareaMantenimientoService, TareaMantenimientoService>();
 
 // Autenticación por cookies.
 // El proveedor real (OpenIddict / OIDC) se incorpora en una iteración posterior;

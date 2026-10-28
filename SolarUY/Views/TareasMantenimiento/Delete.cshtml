@@ -1,0 +1,25 @@
+@model SolarUY.Application.Dtos.TareaMantenimientoDetalleDto
+@{
+    ViewData["Title"] = "Eliminar tarea";
+}
+
+<h1>Eliminar tarea de mantenimiento</h1>
+
+<div class="alert alert-danger">
+    ¿Está seguro que desea eliminar esta tarea de mantenimiento? Esta acción es física y no se puede deshacer.
+</div>
+
+<dl class="row">
+    <dt class="col-sm-3">Tipo</dt>
+    <dd class="col-sm-9">@Model.TipoTarea</dd>
+    <dt class="col-sm-3">Estado</dt>
+    <dd class="col-sm-9">@Model.Estado</dd>
+    <dt class="col-sm-3">Asignado a</dt>
+    <dd class="col-sm-9">@Model.AsignadoA</dd>
+</dl>
+
+<form asp-action="Delete" method="post">
+    <input type="hidden" asp-for="Id" />
+    <button type="submit" class="btn btn-danger">Eliminar</button>
+    <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">Cancelar</a>
+</form>

@@ -33,6 +33,7 @@ public class SolarUYDbContext : DbContext
     public DbSet<Inversor> Inversores => Set<Inversor>();
 
     public DbSet<Panel> Paneles => Set<Panel>();
+    public DbSet<TareaMantenimiento> TareasMantenimiento => Set<TareaMantenimiento>();
 
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)

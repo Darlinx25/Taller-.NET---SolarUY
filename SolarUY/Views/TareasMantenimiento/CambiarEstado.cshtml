@@ -1,0 +1,69 @@
+@model SolarUY.Application.Dtos.CambiarEstadoTareaMantenimientoDto
+@{
+    ViewData["Title"] = "Cambiar estado";
+    var tarea = ViewBag.Tarea as SolarUY.Application.Dtos.TareaMantenimientoDetalleDto;
+}
+
+<h1>Cambiar estado</h1>
+
+@if (tarea != null)
+{
+    <div class="alert alert-info">
+        <strong>Panel:</strong> @tarea.PanelCodigoSerie | Estado actual: @tarea.Estado
+    </div>
+}
+
+<form asp-action="CambiarEstado" method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <input type="hidden" asp-for="Id" />
+    <div class="form-group">
+        <label asp-for="NuevoEstado"></label>
+        <select asp-for="NuevoEstado" class="form-control">
+            @if (tarea != null)
+            {
+                if (string.Equals(tarea.Estado, "Pendiente", StringComparison.OrdinalIgnoreCase))
+                {
+                    <option value="EnProceso">EnProceso</option>
+                    <option value="Cancelada">Cancelada</option>
+                }
+                else if (string.Equals(tarea.Estado, "EnProceso", StringComparison.OrdinalIgnoreCase))
+                {
+                    <option value="Completada">Completada</option>
+                    <option value="Cancelada">Cancelada</option>
+                }
+            }
+            else
+            {
+                <option value="EnProceso">EnProceso</option>
+                <option value="Completada">Completada</option>
+                <option value="Cancelada">Cancelada</option>
+            }
+        </select>
+        <span asp-validation-for="NuevoEstado" class="text-danger"></span>
+    </div>
+    <div class="form-group" id="quienCompletaGroup">
+        <label asp-for="QuienCompleta"></label>
+        <input asp-for="QuienCompleta" class="form-control" />
+        <span asp-validation-for="QuienCompleta" class="text-danger"></span>
+    </div>
+    <button type="submit" class="btn btn-primary">Cambiar</button>
+    <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">Volver</a>
+</form>
+
+<script>
+    function toggleQuienCompleta() {
+        var sel = document.getElementById('NuevoEstado');
+        var grp = document.getElementById('quienCompletaGroup');
+        if (!sel || !grp) return;
+        if (sel.value === 'Completada') {
+            grp.style.display = 'block';
+        } else {
+            grp.style.display = 'none';
+        }
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        var sel = document.getElementById('NuevoEstado');
+        if (sel) sel.addEventListener('change', toggleQuienCompleta);
+        toggleQuienCompleta();
+    });
+</script>

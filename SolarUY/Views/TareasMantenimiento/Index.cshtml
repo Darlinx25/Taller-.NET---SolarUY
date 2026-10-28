@@ -1,0 +1,63 @@
+@model IReadOnlyList<SolarUY.Application.Dtos.TareaMantenimientoDto>
+@{
+    ViewData["Title"] = "Tareas de mantenimiento";
+    var panel = ViewBag.Panel as SolarUY.Application.Dtos.PanelDetalleDto;
+}
+
+<h1>Tareas de mantenimiento</h1>
+
+@if (panel != null)
+{
+    <div class="alert alert-info">
+        <strong>Panel:</strong> @panel.CodigoSerie
+    </div>
+}
+
+<p>
+    <a asp-action="Create" asp-route-panelId="@panel?.Id" class="btn btn-primary">Nueva tarea</a>
+    @if (panel != null)
+    {
+        <a asp-controller="Paneles" asp-action="Details" asp-route-id="@panel.Id" class="btn btn-secondary">Volver al panel</a>
+    }
+</p>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Tipo de tarea</th>
+            <th>Estado</th>
+            <th>Asignado a</th>
+            <th>Fecha de asignación</th>
+            <th>Fecha de vencimiento</th>
+            <th>Fecha de inicio</th>
+            <th>Fecha de finalización</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.TipoTarea</td>
+                <td>@item.Estado</td>
+                <td>@item.AsignadoA</td>
+                <td>@item.FechaAsignacion.ToString("yyyy-MM-dd")</td>
+                <td>@item.FechaVencimiento.ToString("yyyy-MM-dd")</td>
+                <td>@(item.FechaInicio == default ? "-" : item.FechaInicio.ToString("yyyy-MM-dd"))</td>
+                <td>@(item.FechaFinalizacion == default ? "-" : item.FechaFinalizacion.ToString("yyyy-MM-dd"))</td>
+                <td>
+                    <a asp-action="Details" asp-route-id="@item.Id">Detalle</a> |
+                    @if (!(string.Equals(item.Estado, "Completada", StringComparison.OrdinalIgnoreCase) || string.Equals(item.Estado, "Cancelada", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        <a asp-action="Edit" asp-route-id="@item.Id">Editar</a> <text>|</text>
+                    }
+                    @if (!(string.Equals(item.Estado, "Completada", StringComparison.OrdinalIgnoreCase) || string.Equals(item.Estado, "Cancelada", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        <a asp-action="CambiarEstado" asp-route-id="@item.Id">Cambiar estado</a> <text>|</text>
+                    }
+                    <a asp-action="Delete" asp-route-id="@item.Id">Eliminar</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

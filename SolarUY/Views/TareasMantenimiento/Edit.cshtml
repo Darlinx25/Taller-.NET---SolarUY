@@ -1,0 +1,50 @@
+@model SolarUY.Application.Dtos.EditarTareaMantenimientoDto
+@{
+    ViewData["Title"] = "Editar tarea";
+    var tarea = ViewBag.Tarea as SolarUY.Application.Dtos.TareaMantenimientoDetalleDto;
+}
+
+<h1>Editar tarea de mantenimiento</h1>
+
+@if (tarea != null)
+{
+    <div class="alert alert-info">
+        <strong>Panel:</strong> @tarea.PanelCodigoSerie
+    </div>
+    @if (string.Equals(tarea.Estado, "Completada", StringComparison.OrdinalIgnoreCase) || string.Equals(tarea.Estado, "Cancelada", StringComparison.OrdinalIgnoreCase))
+    {
+        <div class="alert alert-warning">No se puede editar una tarea en estado Completada o Cancelada.</div>
+    }
+}
+
+<form asp-action="Edit" method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <input type="hidden" asp-for="Id" />
+    <div class="form-group">
+        <label asp-for="TipoTarea"></label>
+        <input asp-for="TipoTarea" class="form-control" />
+        <span asp-validation-for="TipoTarea" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="Descripcion"></label>
+        <textarea asp-for="Descripcion" class="form-control"></textarea>
+        <span asp-validation-for="Descripcion" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="AsignadoA"></label>
+        <input asp-for="AsignadoA" class="form-control" />
+        <span asp-validation-for="AsignadoA" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="FechaVencimiento"></label>
+        <input asp-for="FechaVencimiento" type="date" class="form-control" />
+        <span asp-validation-for="FechaVencimiento" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="Observaciones"></label>
+        <textarea asp-for="Observaciones" class="form-control"></textarea>
+        <span asp-validation-for="Observaciones" class="text-danger"></span>
+    </div>
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">Volver</a>
+</form>

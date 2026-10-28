@@ -1,0 +1,45 @@
+@model SolarUY.Application.Dtos.TareaMantenimientoDetalleDto
+@{
+    ViewData["Title"] = "Detalle de tarea";
+}
+
+<h1>Detalle de tarea de mantenimiento</h1>
+
+<div class="alert alert-info">
+    <strong>Panel:</strong> @Model.PanelCodigoSerie
+</div>
+
+<dl class="row">
+    <dt class="col-sm-3">Tipo de tarea</dt>
+    <dd class="col-sm-9">@Model.TipoTarea</dd>
+    <dt class="col-sm-3">Descripción</dt>
+    <dd class="col-sm-9">@Model.Descripcion</dd>
+    <dt class="col-sm-3">Asignado a</dt>
+    <dd class="col-sm-9">@Model.AsignadoA</dd>
+    <dt class="col-sm-3">Estado</dt>
+    <dd class="col-sm-9">@Model.Estado</dd>
+    <dt class="col-sm-3">Fecha de asignación</dt>
+    <dd class="col-sm-9">@Model.FechaAsignacion.ToString("yyyy-MM-dd")</dd>
+    <dt class="col-sm-3">Fecha de vencimiento</dt>
+    <dd class="col-sm-9">@Model.FechaVencimiento.ToString("yyyy-MM-dd")</dd>
+    <dt class="col-sm-3">Fecha de inicio</dt>
+    <dd class="col-sm-9">@(Model.FechaInicio == default ? "-" : Model.FechaInicio.ToString("yyyy-MM-dd"))</dd>
+    <dt class="col-sm-3">Fecha de finalización</dt>
+    <dd class="col-sm-9">@(Model.FechaFinalizacion == default ? "-" : Model.FechaFinalizacion.ToString("yyyy-MM-dd"))</dd>
+    <dt class="col-sm-3">Quién asigna</dt>
+    <dd class="col-sm-9">@Model.QuienAsigna</dd>
+    <dt class="col-sm-3">Quién completa</dt>
+    <dd class="col-sm-9">@(string.IsNullOrWhiteSpace(Model.QuienCompleta) ? "-" : Model.QuienCompleta)</dd>
+    <dt class="col-sm-3">Observaciones</dt>
+    <dd class="col-sm-9">@(string.IsNullOrWhiteSpace(Model.Observaciones) ? "-" : Model.Observaciones)</dd>
+</dl>
+
+<p>
+    @if (!(string.Equals(Model.Estado, "Completada", StringComparison.OrdinalIgnoreCase) || string.Equals(Model.Estado, "Cancelada", StringComparison.OrdinalIgnoreCase)))
+    {
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">Editar</a>
+        <a asp-action="CambiarEstado" asp-route-id="@Model.Id" class="btn btn-warning">Cambiar estado</a>
+    }
+    <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">Eliminar</a>
+    <a asp-action="Index" asp-route-panelId="@Model.PanelId" class="btn btn-secondary">Volver al listado</a>
+</p>
