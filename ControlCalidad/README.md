@@ -31,6 +31,7 @@ Requerimientos:
 | `req002_gestion_parques` | Detalle, edicion y baja de parques solares (Administrador) | Implementado |
 | `req003_nodos_inversores` | Nodos e inversores por parque solar (Administrador) | Implementado |
 | `req004_gestion_paneles` | Paneles fotovoltaicos por nodo (Administrador) | Implementado |
+| `req006_mock_inversor` | Mock del inversor: componente independiente `SolarUY.Simulador` que obtiene la topologia, genera la telemetria y la envia a la aplicacion (sin persistencia) | En progreso |
 
 Estados: **Planificado** (solo artefactos), **En progreso** (implementación
 iniciada) e **Implementado** (cerrado con tests y análisis estático).
@@ -92,6 +93,17 @@ pruebas unitarias.
 docker compose run --rm tools dotnet test SolarUY.Tests
 ```
 
+### D. Pruebas del simulador (`/SolarUY.Simulador.Tests`)
+
+El mock del inversor (`SolarUY.Simulador`) es un componente independiente del monolito, con su propio
+Dominio (curva solar, fallas y energia). Sus pruebas viven en un proyecto xUnit aparte
+(aprobado en `prompting/req006_mock_inversor/specs.md`, apartado "Justificacion de excepciones"): cubren
+la logica pura (Dominio, orquestador y mapper); no se prueban los clientes HTTP ni el arranque.
+
+```bash
+docker compose run --rm tools dotnet test SolarUY.Simulador.Tests
+```
+
 ---
 
 ## 3. 📊 SonarQube (`/SonarQube`)
@@ -128,4 +140,5 @@ El token se configura en el `.env` de la raíz (`SONAR_TOKEN=...`) y **nunca** s
 | --- | --- | --- | --- |
 | Guardarraíles ArchUnitNET | `ValidacionDeCodigo/CodeQuality.Tests` | En cada cambio de código | `docker compose run --rm tools dotnet test SolarUY.sln` |
 | Tests xUnit del dominio | `SolarUY.Tests` | En cada cambio de código | `docker compose run --rm tools dotnet test SolarUY.Tests` |
+| Tests xUnit del simulador | `SolarUY.Simulador.Tests` | En cada cambio del simulador | `docker compose run --rm tools dotnet test SolarUY.Simulador.Tests` |
 | SonarQube | `SonarQube/` | Antes de cada entrega / cierre de iteración | `./ControlCalidad/SonarQube/analizar.sh` |

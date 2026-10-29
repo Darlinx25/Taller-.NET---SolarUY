@@ -2,29 +2,39 @@
 
 ## Objetivo
 
-Implementar el mock del inversor como un componente separado del monolito: un proceso y contenedor propios (`simulador`) que obtiene la topología registrada mediante un endpoint interno de SolarUY, genera cada 5 segundos una lectura de telemetría (potencia en W, energía acumulada en kWh y estado de cada panel) y la envía por HTTP a la aplicación, que la valida y conserva en una caché distribuida para exponerla mediante `GET /api/telemetria` al rol Administrador, sin persistencia y sin migraciones.
+Implementar el mock del inversor como un componente **independiente** del monolito: un proyecto, proceso y contenedor propios (`SolarUY.Simulador` / `simulador`) que obtiene la topología registrada mediante un endpoint interno de SolarUY, genera cada 5 segundos una lectura de telemetría (potencia en W, energía acumulada en kWh y estado de cada panel) y la envía por HTTP a la aplicación, que la valida y conserva en una caché distribuida para exponerla mediante `GET /api/telemetria` al rol Administrador, sin persistencia y sin migraciones. El único acoplamiento entre ambos es el contrato JSON de los dos endpoints internos.
 
 ## Decisiones y supuestos
 
-- Punto de partida: el repositorio **no contiene** código de telemetría. Todo lo descrito en esta spec es nuevo: Dominio, DTOs, servicios, controladores, el proyecto `SolarUY.Simulador`, el servicio Docker y los tests de Dominio. No se elimina ni se reemplaza nada existente.
-- El mock es un **componente separado**, no un `BackgroundService` del monolito. Se implementa en un proyecto nuevo, `SolarUY.Simulador`, y se despliega como el servicio `simulador` de `docker-compose.yml`. Es un componente desplegable, no una capa: el monolito sigue siendo un único proyecto en capas.
+- Punto de partida: el repositorio **no contiene** código de telemetría. Todo lo descrito en esta spec es nuevo: DTOs, servicios, controladores y caché en el monolito; el proyecto `SolarUY.Simulador` con su lógica de simulación; su proyecto de tests; el servicio Docker. No se elimina ni se reemplaza nada existente y **no se modifica el Dominio del monolito**.
+- El mock es un **componente independiente**, no un `BackgroundService` del monolito ni código compartido con él. Se despliega como el servicio `simulador` de `docker-compose.yml`.
+- **Independencia de código:** el simulador no referencia `SolarUY.csproj` ni compila fuentes del monolito. Define sus propios contratos (DTOs) y su propia lógica de simulación. Se verificó con un prototipo que referenciar al monolito rompe `dotnet publish` (`NETSDK1152`, `appsettings.json` duplicado) y copia al simulador el `appsettings.Development.json` con la cadena de conexión de MySQL.
+- El contrato JSON es el único punto de acuerdo entre ambos componentes. Los DTOs se declaran dos veces (uno por componente) con los mismos nombres y campos; un cambio de contrato exige actualizar ambos lados y esta spec.
 - La aplicación no genera telemetría. Expone la topología, recibe, valida, conserva y publica la última lectura.
-- **La aplicación es la única que accede a MySQL.** El simulador no tiene cadena de conexión, `DbContext` ni repositorios.
-- **El simulador no referencia `SolarUY.csproj`.** Se verificó con un prototipo que la referencia de proyecto (a) rompe `dotnet publish` con `NETSDK1152` por el `appsettings.json` duplicado y (b) copia al simulador el `appsettings.Development.json` del monolito, que contiene la cadena de conexión a MySQL, además de arrastrar EF Core, el proveedor MySQL y ASP.NET Core. En su lugar, el simulador compila por enlace (`<Compile Include>`) únicamente los fuentes que comparte con el monolito: el Dominio (C# puro, garantizado por ArchUnitNET), los DTOs de telemetría y topología y `AutenticacionComponentes`. Con esto el simulador corre sobre `Microsoft.NETCore.App` (imagen `runtime`, no `aspnet`).
+- **La aplicación es la única que accede a MySQL.** El simulador no tiene cadena de conexión, `DbContext` ni repositorios, y su imagen no contiene código del monolito.
 - La topología se obtiene con `GET /api/simulacion/topologia`, un endpoint interno autenticado con API key. Devuelve parques, nodos con su estado, potencia nominal del inversor y paneles en modo solo lectura.
 - La telemetría se envía con `POST /api/simulacion/telemetria`, autenticado con la misma API key.
 - El simulador usa una única URL base (`SimulacionApi:UrlBase`): hoy `http://app:8080`, mañana la del balanceador. No conoce hosts individuales ni réplicas.
 - La última lectura vive detrás de `IAlmacenTelemetria`, una interfaz **asíncrona** sobre `IDistributedCache`. Hoy se registra `AddDistributedMemoryCache()`; mañana se cambia a Redis sin tocar controladores ni simulador.
-- La API key es un secreto compartido entre `app` y `simulador`. Se configura por variable de entorno (`SIMULACION_API_KEY`) y no se versiona.
+- La API key es un secreto compartido entre `app` y `simulador`. Se configura por la variable de entorno `SIMULACION_API_KEY`, que **es opcional**: `docker-compose.yml` define un valor por defecto de desarrollo (`SolarUY.Local2026`) para que levantar el stack no requiera ninguna configuración. Para otro entorno se define en el `.env` (fuera de git) o en el entorno del despliegue; los `appsettings.json` versionados la traen vacía.
 - No se agregan `DbSet`, configuraciones Fluent API, tablas ni migraciones.
 - El contrato JSON de `GET /api/telemetria` es el de los DTOs de la sección 2 (camelCase), con `204` antes de la primera lectura y `200` después.
 - La consulta es exclusiva del rol `Administrador` con cookie de sesión. Los endpoints internos usan API key, no cookie ni rol de usuario.
 - No se implementa balanceador de carga ni réplicas. Hay una instancia de `app` y una de `simulador`, y la comunicación es directa.
 - El simulador envía una lectura aunque no haya parques: la aplicación la almacena como lectura vacía (`fechaHora: null`, `parques: []`) y el `GET` responde `200`.
 - Si la topología no se puede obtener, el simulador **no envía** una lectura vacía: omite el tick y conserva la última lectura de la aplicación.
-- La energía acumulada se mantiene **sin redondear** en el Dominio y en el estado del simulador, y se redondea a 4 decimales solo al armar el DTO. Redondear el acumulado en cada tick introduciría un error sistemático: con ticks de 5 s un nodo de 0,3 kW suma 0,0004 kWh por tick y nunca superaría el umbral de 0,0005 de un redondeo a 3 decimales.
+- La energía acumulada se mantiene **sin redondear** en el Dominio del simulador y en su estado, y se redondea a 4 decimales solo al armar el DTO. Redondear el acumulado en cada tick introduciría un error sistemático: con ticks de 5 s un nodo de 0,3 kW suma 0,0004 kWh por tick y nunca superaría el umbral de 0,0005 de un redondeo a 3 decimales.
 - La zona horaria es un desfase fijo (`DesfaseHorarioUruguayHoras = -3`): Uruguay no aplica horario de verano y se evita depender de tzdata en el contenedor.
 - La verificación manual se realiza con `GET /api/telemetria`, los endpoints internos y los logs de `simulador` y `app`.
+
+### Justificación de excepciones a las reglas del proyecto
+
+Dos decisiones se apartan de una lectura literal de las reglas y fueron aprobadas por el usuario al revisar este requerimiento:
+
+1. **Un segundo proyecto de aplicación.** `AGENTS.md` y la regla 1 describen el monolito como un único proyecto `SolarUY` y prohíben proyectos por capa. `SolarUY.Simulador` no es una capa del monolito sino un componente independiente que sustituye al hardware (inversor + sensor ARM), tal como lo muestra el diagrama de la Iteración 1 (bloque 3 "Servicios Integrados y Simulación", fuera de la aplicación monolítica, enviando telemetría a los controladores). El monolito sigue siendo un único proyecto en capas.
+2. **Un proyecto de tests propio del simulador** (`SolarUY.Simulador.Tests`). La regla 5 del flujo de trabajo exige tests xUnit para la lógica de Dominio y prohíbe tests en Application, Infrastructure y Presentation **del monolito**. La lógica de simulación del componente (su Dominio y su orquestador puro) no pertenece a ninguna de esas capas y es la parte con más riesgo de errores. Se prueba la lógica pura; no se prueban los clientes HTTP, el hosted service ni el arranque. En el monolito no se agregan tests nuevos porque no se modifica su Dominio.
+
+`CodeQuality.Tests` no se modifica y solo analiza el ensamblado `SolarUY`; la separación interna del simulador (ver sección 5) se verifica por revisión y por la tarea de confirmación de dependencias, no por ArchUnitNET.
 
 ## Arquitectura de componentes
 
@@ -59,9 +69,9 @@ Es el flujo "Mock Inversores / Sensores ARM → Envía telemetría → Aplicaci�
 ### Flujo de un tick
 
 1. El `SimuladorTelemetriaHostedService` despierta cada `Simulador:IntervaloSegundos`.
-2. `SimuladorInversor` pide la topología a `ClienteTopologia` (`GET /api/simulacion/topologia` con `X-Api-Key`).
+2. `SimuladorInversor` pide la topología a `IProveedorTopologia`, implementado por `ClienteTopologia` (`GET /api/simulacion/topologia` con `X-Api-Key`).
 3. La aplicación autentica la API key, lee la topología con los repositorios existentes y responde `TopologiaSimulacionDto`.
-4. `SimuladorInversor` filtra los nodos `Activo`, sincroniza su estado en memoria de fallas y energía y construye una `LecturaParqueSolarSimulado` por parque (Dominio).
+4. `SimuladorInversor` filtra los nodos `Activo`, sincroniza su estado en memoria de fallas y energía y construye una `LecturaParqueSolarSimulado` por parque (Dominio del simulador).
 5. `TelemetriaMapper` convierte las lecturas de Dominio en `TelemetriaDto`.
 6. `ClienteTelemetria` hace `POST /api/simulacion/telemetria` con JSON y `X-Api-Key`.
 7. La aplicación autentica la API key, valida el payload y reemplaza la última lectura de `IAlmacenTelemetria`.
@@ -71,140 +81,23 @@ Si la topología falla, el tick se omite y se registra una advertencia. Si el en
 
 ## 1) Dominio (`SolarUY.Domain`)
 
-Código nuevo en `SolarUY/Domain/Telemetria/` (namespace `SolarUY.Domain.Telemetria`). Es C# puro: no referencia EF Core, ASP.NET Core, `Application`, `Infrastructure` ni `Controllers`. Lo consume el simulador (por enlace de fuentes) y lo prueban los tests de Dominio. La aplicación no lo usa en tiempo de ejecución.
+**Sin cambios.** El mock no agrega entidades, excepciones ni contratos de repositorio al Dominio del monolito. La lógica de simulación vive en el Dominio del simulador (sección 5).
 
-### Entidades y objetos de simulación
+### Entidades
 
-#### `EstadoPanelSimulado` (enum)
-
-| Valor | Significado |
-|---|---|
-| `Operativo` | El panel genera según la curva solar. |
-| `EnFalla` | El panel no genera (0 W) hasta recuperarse. |
-
-#### `GeneradorGeneracionSolar` (clase estática)
-
-| Miembro | Firma | Regla |
-|---|---|---|
-| `HoraInicioGeneracion` | `public const int HoraInicioGeneracion = 7` | Inicio de la ventana solar. |
-| `HoraFinGeneracion` | `public const int HoraFinGeneracion = 19` | Fin de la ventana solar. |
-| `CalcularFactorSolar` | `public static decimal CalcularFactorSolar(DateTime horaLocal)` | Con `hora = horaLocal.TimeOfDay.TotalHours` (fraccionaria): devuelve 0 si `hora < 7` o `hora >= 19`; en caso contrario devuelve `sin(π × (hora - 7) / 12)` redondeado a 4 decimales y acotado a [0, 1]. El pico (1) es a las 13:00. |
-| `CalcularPotenciaGenerada` | `public static decimal CalcularPotenciaGenerada(decimal potenciaWp, DateTime horaLocal, decimal variacion, EstadoPanelSimulado estado)` | Valida `potenciaWp > 0` y `variacion` en [-1, 1]. Devuelve 0 si `estado == EnFalla`. En caso contrario: `factor = CalcularFactorSolar(horaLocal) × (1 + variacion)` acotado a [0, 1]; `potencia = potenciaWp × factor` redondeada a 2 decimales (`MidpointRounding.AwayFromZero`) y acotada a [0, `potenciaWp`] **después** de redondear. |
-
-#### `PanelSimulado`
-
-Representa el estado en memoria de un panel durante la simulación. No se persiste.
-
-| Campo | Tipo | Regla |
-|---|---|---|
-| `PanelId` | `Guid` | Obligatorio, no vacío, inmutable. |
-| `NodoId` | `Guid` | Obligatorio, no vacío, inmutable. |
-| `CodigoSerie` | `string` | Obligatorio, trim, máximo `Panel.CodigoSerieMaxLength`. |
-| `PotenciaWp` | `decimal` | Obligatoria, mayor a 0. |
-| `Estado` | `EstadoPanelSimulado` | Inicia en `Operativo`; solo cambia mediante `ActualizarEstado`. |
-| `TicksRestantesFalla` | `int` | Inicia en 0; mayor o igual a 0. |
-
-Comportamiento:
-
-- Constructor `PanelSimulado(Guid panelId, Guid nodoId, string codigoSerie, decimal potenciaWp)` con las validaciones indicadas.
-- `ActualizarEstado(decimal probabilidadFalla, int duracionFallaTicks, decimal valorAleatorio)`:
-  - Valida `probabilidadFalla` en [0, 1], `duracionFallaTicks > 0` y `valorAleatorio` en [0, 1].
-  - Si `Estado == EnFalla`: descuenta un tick en `TicksRestantesFalla`; cuando llega a 0, cambia a `Operativo`.
-  - **En caso contrario** (`Estado == Operativo`): si `valorAleatorio < probabilidadFalla`, cambia a `EnFalla` y asigna `TicksRestantesFalla = duracionFallaTicks`.
-  - Las dos ramas son excluyentes: un panel que se recupera en una lectura no vuelve a fallar en esa misma lectura.
-  - Con `duracionFallaTicks = N`, el panel informa exactamente N lecturas `EnFalla` consecutivas (la del tick en que falla y las N-1 siguientes) y la lectura N+1 es `Operativo`.
-- `GenerarLectura(DateTime horaLocal, decimal variacion, DateTime fechaHoraUtc)`:
-  - Invoca `GeneradorGeneracionSolar.CalcularPotenciaGenerada(PotenciaWp, horaLocal, variacion, Estado)`.
-  - Devuelve un `LecturaPanelSimulado` con `PanelId`, `CodigoSerie`, la potencia calculada, el `Estado` actual y `fechaHoraUtc`.
-
-#### `LecturaPanelSimulado`
-
-| Campo | Tipo | Regla |
-|---|---|---|
-| `PanelId` | `Guid` | Obligatorio, no vacío. |
-| `CodigoSerie` | `string` | Obligatorio, trim, máximo `Panel.CodigoSerieMaxLength`. |
-| `PotenciaGeneradaW` | `decimal` | Mayor o igual a 0. |
-| `Estado` | `EstadoPanelSimulado` | Obligatorio. |
-| `FechaHora` | `DateTime` | Obligatoria, distinta de `default`. |
-
-- Constructor `LecturaPanelSimulado(Guid panelId, string codigoSerie, decimal potenciaGeneradaW, EstadoPanelSimulado estado, DateTime fechaHoraUtc)`.
-- Propiedad calculada `EstaOperativo => Estado == EstadoPanelSimulado.Operativo`.
-
-#### `LecturaNodoSimulado`
-
-| Campo | Tipo | Regla |
-|---|---|---|
-| `NodoId` | `Guid` | Obligatorio, no vacío. |
-| `CodigoNodo` | `string` | Obligatorio, trim, máximo `Nodo.CodigoMaxLength`. |
-| `PotenciaGeneradaW` | `decimal` | Suma de los paneles, limitada por la potencia máxima cuando se informa. |
-| `EnergiaAcumuladaKWh` | `decimal` | Energía anterior más la generada en el intervalo, **sin redondear**. |
-| `FechaHora` | `DateTime` | Obligatoria, distinta de `default`. |
-| `Paneles` | `IReadOnlyList<LecturaPanelSimulado>` | Lista inmutable; puede estar vacía. |
-
-Factory:
-
-```csharp
-public static LecturaNodoSimulado Crear(
-    Guid nodoId,
-    string codigoNodo,
-    IReadOnlyList<LecturaPanelSimulado> paneles,
-    decimal energiaAcumuladaAnteriorKWh,
-    decimal? potenciaMaximaKW,
-    TimeSpan intervalo,
-    DateTime fechaHoraUtc)
-```
-
-Reglas de la factory:
-
-- Valida `nodoId` no vacío, `codigoNodo` obligatorio y con longitud máxima, `paneles` no nulo, `energiaAcumuladaAnteriorKWh >= 0`, `intervalo > TimeSpan.Zero` y `fechaHoraUtc` distinta de `default`.
-- Si `potenciaMaximaKW` tiene valor, debe ser **mayor o igual a 0**. Es el mismo rango que acepta `Inversor.PotenciaNominalkW` (que permite 0); exigir `> 0` haría fallar todo el tick ante un inversor registrado con 0 kW.
-- `PotenciaGeneradaW = min(suma de paneles, potenciaMaximaKW × 1000)`; si `potenciaMaximaKW` es `null`, no aplica límite.
-- `EnergiaAcumuladaKWh = energiaAcumuladaAnteriorKWh + (PotenciaGeneradaW / 1000) × (decimal)intervalo.TotalSeconds / 3600`.
-
-#### `LecturaParqueSolarSimulado`
-
-| Campo | Tipo | Regla |
-|---|---|---|
-| `ParqueSolarId` | `Guid` | Obligatorio, no vacío. |
-| `NombreParque` | `string` | Obligatorio, trim, máximo `ParqueSolar.NombreMaxLength`. |
-| `PotenciaGeneradaW` | `decimal` | Suma de la potencia de los nodos. |
-| `EnergiaAcumuladaKWh` | `decimal` | Suma de la energía acumulada de los nodos, sin redondear. |
-| `FechaHora` | `DateTime` | Obligatoria, distinta de `default`. |
-| `Nodos` | `IReadOnlyList<LecturaNodoSimulado>` | Lista inmutable; puede estar vacía. |
-
-Factory:
-
-```csharp
-public static LecturaParqueSolarSimulado Crear(
-    Guid parqueSolarId,
-    string nombreParque,
-    IReadOnlyList<LecturaNodoSimulado> nodos,
-    DateTime fechaHoraUtc)
-```
-
-Reglas de la factory:
-
-- Valida `parqueSolarId` no vacío, `nombreParque` obligatorio y con longitud máxima, `nodos` no nulo y `fechaHoraUtc` distinta de `default`.
-- `PotenciaGeneradaW = suma de la potencia de los nodos`.
-- `EnergiaAcumuladaKWh = suma de la energía acumulada de los nodos`.
+No se agregan ni modifican.
 
 ### Validaciones
 
-- Todos los identificadores `Guid` deben ser distintos de `Guid.Empty`.
-- Todos los textos obligatorios se normalizan con `Trim` y no pueden quedar vacíos.
-- Las longitudes máximas reutilizan las constantes existentes: `Panel.CodigoSerieMaxLength`, `Nodo.CodigoMaxLength` y `ParqueSolar.NombreMaxLength`.
-- Las potencias generadas y las energías acumuladas no pueden ser negativas.
-- La potencia de un panel no puede superar su `PotenciaWp`.
-- La energía acumulada se calcula en el Dominio; el simulador solo aporta el intervalo, la energía anterior y los valores aleatorios.
-- Las validaciones lanzan `ArgumentException`, `ArgumentNullException` o `ArgumentOutOfRangeException` con mensajes en español, igual que `Panel` y `Nodo`.
+No se agregan ni modifican.
 
 ### Excepciones
 
-No se crean excepciones nuevas: se usan las de argumentos de .NET, como en las entidades existentes.
+No se agregan.
 
 ### Repositorios (contratos)
 
-No se agregan ni modifican contratos de repositorio.
+No se agregan ni modifican. La topología se lee con `IParqueSolarRepository`, `INodoRepository` e `IPanelRepository` existentes.
 
 ## 2) Aplicación (`SolarUY.Application`)
 
@@ -219,7 +112,7 @@ Ubicación: `SolarUY/Application/Dtos/` (namespace `SolarUY.Application.Dtos`, c
 | `TelemetriaNodoDto` | `Guid NodoId`, `string CodigoNodo`, `decimal PotenciaGeneradaW`, `decimal EnergiaAcumuladaKWh`, `DateTime FechaHora`, `IReadOnlyList<TelemetriaPanelDto> Paneles` |
 | `TelemetriaPanelDto` | `Guid PanelId`, `string CodigoSerie`, `decimal PotenciaGeneradaW`, `string Estado`, `DateTime FechaHora` |
 
-- `Estado` se serializa con el nombre del enum: `Operativo` o `EnFalla`.
+- `Estado` es texto: `Operativo` o `EnFalla`.
 - `TelemetriaDto.FechaHora` es `null` cuando la lectura no contiene parques.
 - Los DTOs no llevan DataAnnotations ni `[JsonRequired]`; la ingesta valida con `ValidadorTelemetria`.
 - Ejemplo de respuesta:
@@ -253,7 +146,7 @@ Ubicación: `SolarUY/Application/Dtos/` (namespace `SolarUY.Application.Dtos`, c
 
 ### DTOs de topología
 
-Ubicación: `SolarUY/Application/Dtos/`.
+Ubicación: `SolarUY/Application/Dtos/`. Son el contrato de salida de `GET /api/simulacion/topologia`.
 
 | DTO | Propiedades |
 |---|---|
@@ -280,8 +173,8 @@ public static class AutenticacionComponentes
 }
 ```
 
-- Centraliza los nombres del esquema y del encabezado para que la Presentación no dependa de Infraestructura.
-- Los usan el controlador, el handler de autenticación y los clientes del simulador (que compilan este archivo por enlace).
+- Centraliza los nombres del esquema y del encabezado para que la Presentación no dependa de Infraestructura. Los usan el controlador y el handler de autenticación.
+- El simulador declara su propia constante del encabezado (`X-Api-Key`): es parte del contrato.
 
 ### `IAlmacenTelemetria`
 
@@ -377,10 +270,10 @@ Reglas:
   - `PanelId != Guid.Empty`;
   - `CodigoSerie` no vacío y con longitud máxima `Panel.CodigoSerieMaxLength`;
   - `PotenciaGeneradaW >= 0`;
-  - `Estado` es exactamente (sensible a mayúsculas) uno de los nombres de `EstadoPanelSimulado`: `Operativo` o `EnFalla`;
+  - `Estado` es exactamente (sensible a mayúsculas) `Operativo` o `EnFalla`, declarados como constantes privadas del validador (los estados válidos del contrato);
   - `FechaHora != default`.
 - Los mensajes indican la ruta del dato inválido, por ejemplo `"parques[0].nodos[1].potenciaGeneradaW no puede ser negativa."`.
-- No se validan las sumas de potencia ni de energía: el emisor es un componente interno confiable y las fórmulas viven en el Dominio.
+- No se validan las sumas de potencia ni de energía: el emisor es un componente interno confiable y las fórmulas viven en el simulador.
 - El validador es stateless y se registra como singleton.
 
 ### `IValidadorApiKey`
@@ -534,6 +427,8 @@ Se agrega a `SolarUY/appsettings.json`:
 
 La key real se inyecta por variable de entorno en Docker; no se versiona.
 
+Además se sube a `Warning` el nivel de `Microsoft.EntityFrameworkCore.Database.Command` en `Logging:LogLevel`: la topología se consulta cada 5 s y el log de cada sentencia SQL inundaría `docker compose logs app`, donde se verifica la ingesta.
+
 ## 4) Presentación (`SolarUY.Controllers`)
 
 ### Controlador y acciones
@@ -590,7 +485,7 @@ public class TelemetriaController : ControllerBase
 
 ### Autorización
 
-- `GET /api/telemetria`: cookie de sesión y rol `Administrador`. Sin sesión, el middleware de cookies **redirige (`302`) a `/dev/login?ReturnUrl=...`**, igual que el resto de la aplicación (no responde `401`); con sesión sin el rol, redirige a `/dev/denegado`. En `Development`, `/dev/login` firma al Administrador y vuelve a la URL pedida. No se cambia el comportamiento de autenticación (fuera de alcance).
+- `GET /api/telemetria`: cookie de sesión y rol `Administrador`. Al ser un endpoint `[ApiController]`, el middleware de cookies responde `401` sin sesión y `403` con sesión sin el rol (no redirige al login como las vistas MVC; verificado en la ejecución). Enviar la API key a este endpoint tampoco autentica. No se cambia el comportamiento de autenticación (fuera de alcance).
 - `GET /api/simulacion/topologia` y `POST /api/simulacion/telemetria`: esquema `ApiKey` y encabezado `X-Api-Key`. Sin encabezado o con key incorrecta, responden `401` sin tocar la lectura almacenada.
 - La API key no se acepta por query string ni por body.
 - Los endpoints internos no usan anti-forgery porque no se autentican con cookie.
@@ -602,25 +497,47 @@ No se crean vistas Razor ni hubs de SignalR. La verificación se hace con los en
 
 ## 5) Proyecto simulador (`SolarUY.Simulador`)
 
-Componente separado: no pertenece a las capas del monolito y queda fuera del ensamblado que analiza ArchUnitNET.
-
-### Estructura
+Componente independiente: no pertenece a las capas del monolito, no comparte código con él y queda fuera del ensamblado que analiza ArchUnitNET. Sigue la misma disciplina de capas internas, en carpetas y namespaces:
 
 ```text
 SolarUY.Simulador/
 ├── SolarUY.Simulador.csproj
 ├── Program.cs
 ├── appsettings.json
-├── Simulacion/
+├── Domain/                      # namespace SolarUY.Simulador.Domain
+│   ├── EstadoPanelSimulado.cs
+│   ├── GeneradorGeneracionSolar.cs
+│   ├── PanelSimulado.cs
+│   ├── LecturaPanelSimulado.cs
+│   ├── LecturaNodoSimulado.cs
+│   ├── LecturaParqueSolarSimulado.cs
+│   └── Validaciones.cs          # validaciones comunes (internal)
+├── Contracts/                   # namespace SolarUY.Simulador.Contracts
+│   ├── TopologiaSimulacionDto.cs, ParqueSimulacionDto.cs,
+│   │   NodoSimulacionDto.cs, PanelSimulacionDto.cs
+│   └── TelemetriaDto.cs, TelemetriaParqueSolarDto.cs,
+│       TelemetriaNodoDto.cs, TelemetriaPanelDto.cs
+├── Simulation/                  # namespace SolarUY.Simulador.Simulation
 │   ├── ConfiguracionSimulador.cs
+│   ├── IProveedorTopologia.cs
 │   ├── SimuladorInversor.cs
 │   └── SimuladorTelemetriaHostedService.cs
-└── Transporte/
+└── Transport/                   # namespace SolarUY.Simulador.Transport
     ├── ConfiguracionSimulacionApi.cs
     ├── ClienteTopologia.cs
     ├── ClienteTelemetria.cs
+    ├── RespuestaHttp.cs         # lectura del fragmento de respuestas no exitosas (internal)
     └── TelemetriaMapper.cs
 ```
+
+Reglas de dependencia internas (se verifican por revisión, no por ArchUnitNET):
+
+- `Domain` no depende de ninguna otra carpeta ni de paquetes externos: C# puro.
+- `Contracts` no depende de nadie: solo clases con propiedades.
+- `SimuladorInversor` (en `Simulation`) depende de `Domain` y `Contracts`; accede a la topología únicamente mediante `IProveedorTopologia` y no conoce HTTP.
+- `SimuladorTelemetriaHostedService` (en `Simulation`) es la pieza que une el ciclo: además usa `ClienteTelemetria` y `TelemetriaMapper` de `Transport`.
+- `Transport` depende de `Contracts` y `Domain` (el mapper) e implementa `IProveedorTopologia` (de `Simulation`).
+- Solo `Program.cs` conoce todas las carpetas.
 
 ### Proyecto (`SolarUY.Simulador.csproj`)
 
@@ -636,27 +553,159 @@ SolarUY.Simulador/
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
   </ItemGroup>
-
-  <!-- Fuentes compartidas con el monolito (compilación por enlace, sin ProjectReference). -->
-  <ItemGroup>
-    <Compile Include="..\SolarUY\Domain\**\*.cs" LinkBase="SolarUY\Domain" />
-    <Compile Include="..\SolarUY\Application\Dtos\Telemetria*Dto.cs" LinkBase="SolarUY\Application\Dtos" />
-    <Compile Include="..\SolarUY\Application\Dtos\*SimulacionDto.cs" LinkBase="SolarUY\Application\Dtos" />
-    <Compile Include="..\SolarUY\Application\Seguridad\AutenticacionComponentes.cs" LinkBase="SolarUY\Application\Seguridad" />
-  </ItemGroup>
 </Project>
 ```
 
-- `net10.0`, `Nullable` e `ImplicitUsings` habilitados. Se agrega a `SolarUY.sln`.
-- **No** tiene `ProjectReference` a `SolarUY.csproj` ni a ningún otro proyecto. Los paquetes son los únicos de la solución para hosting y `AddHttpClient`.
-- No referencia controladores, vistas, `DbContext`, repositorios, EF Core ni el pipeline web. Su `Program.cs` es un host de consola.
+- Se agrega a `SolarUY.sln`.
+- **No** tiene `ProjectReference` ni `Compile Include` hacia `SolarUY`. No referencia controladores, vistas, `DbContext`, repositorios, EF Core ni el pipeline web.
 - No tiene cadena de conexión ni variables de MySQL.
-- Los tipos compartidos se compilan en ambos ensamblados; no hay conflicto porque el simulador no referencia el ensamblado `SolarUY`.
 - Verificación: `dotnet publish` del simulador solo contiene su propio `appsettings.json` y ninguna DLL de EF Core, MySQL ni ASP.NET Core.
+
+### Dominio del simulador (`SolarUY.Simulador.Domain`)
+
+Modelo con comportamiento (no anémico): la curva solar, las fallas y la energía se calculan en estas clases. No dependen del Dominio del monolito, por lo que **no validan longitudes máximas de texto** (las valida la aplicación en la ingesta con `ValidadorTelemetria`).
+
+#### `EstadoPanelSimulado` (enum)
+
+| Valor | Significado |
+|---|---|
+| `Operativo` | El panel genera según la curva solar. |
+| `EnFalla` | El panel no genera (0 W) hasta recuperarse. |
+
+#### `GeneradorGeneracionSolar` (clase estática)
+
+| Miembro | Firma | Regla |
+|---|---|---|
+| `HoraInicioGeneracion` | `public const int HoraInicioGeneracion = 7` | Inicio de la ventana solar. |
+| `HoraFinGeneracion` | `public const int HoraFinGeneracion = 19` | Fin de la ventana solar. |
+| `CalcularFactorSolar` | `public static decimal CalcularFactorSolar(DateTime horaLocal)` | Con `hora = horaLocal.TimeOfDay.TotalHours` (fraccionaria): devuelve 0 si `hora < 7` o `hora >= 19`; en caso contrario devuelve `sin(π × (hora - 7) / 12)` redondeado a 4 decimales y acotado a [0, 1]. El pico (1) es a las 13:00. |
+| `CalcularPotenciaGenerada` | `public static decimal CalcularPotenciaGenerada(decimal potenciaWp, DateTime horaLocal, decimal variacion, EstadoPanelSimulado estado)` | Valida `potenciaWp > 0` y `variacion` en [-1, 1]. Devuelve 0 si `estado == EnFalla`. En caso contrario: `factor = CalcularFactorSolar(horaLocal) × (1 + variacion)` acotado a [0, 1]; `potencia = potenciaWp × factor` redondeada a 2 decimales (`MidpointRounding.AwayFromZero`) y acotada a [0, `potenciaWp`] **después** de redondear. |
+
+#### `PanelSimulado`
+
+Representa el estado en memoria de un panel durante la simulación. No se persiste.
+
+| Campo | Tipo | Regla |
+|---|---|---|
+| `PanelId` | `Guid` | Obligatorio, no vacío, inmutable. |
+| `NodoId` | `Guid` | Obligatorio, no vacío, inmutable. |
+| `CodigoSerie` | `string` | Obligatorio, trim, no vacío. |
+| `PotenciaWp` | `decimal` | Obligatoria, mayor a 0. |
+| `Estado` | `EstadoPanelSimulado` | Inicia en `Operativo`; solo cambia mediante `ActualizarEstado`. |
+| `TicksRestantesFalla` | `int` | Inicia en 0; mayor o igual a 0. |
+
+Comportamiento:
+
+- Constructor `PanelSimulado(Guid panelId, Guid nodoId, string codigoSerie, decimal potenciaWp)` con las validaciones indicadas.
+- `ActualizarEstado(decimal probabilidadFalla, int duracionFallaTicks, decimal valorAleatorio)`:
+  - Valida `probabilidadFalla` en [0, 1], `duracionFallaTicks > 0` y `valorAleatorio` en [0, 1].
+  - Si `Estado == EnFalla`: descuenta un tick en `TicksRestantesFalla`; cuando llega a 0, cambia a `Operativo`.
+  - **En caso contrario** (`Estado == Operativo`): si `valorAleatorio < probabilidadFalla`, cambia a `EnFalla` y asigna `TicksRestantesFalla = duracionFallaTicks`.
+  - Las dos ramas son excluyentes: un panel que se recupera en una lectura no vuelve a fallar en esa misma lectura.
+  - Con `duracionFallaTicks = N`, el panel informa exactamente N lecturas `EnFalla` consecutivas (la del tick en que falla y las N-1 siguientes) y la lectura N+1 es `Operativo`.
+- `GenerarLectura(DateTime horaLocal, decimal variacion, DateTime fechaHoraUtc)`:
+  - Invoca `GeneradorGeneracionSolar.CalcularPotenciaGenerada(PotenciaWp, horaLocal, variacion, Estado)`.
+  - Devuelve un `LecturaPanelSimulado` con `PanelId`, `CodigoSerie`, la potencia calculada, el `Estado` actual y `fechaHoraUtc`.
+
+#### `LecturaPanelSimulado`
+
+| Campo | Tipo | Regla |
+|---|---|---|
+| `PanelId` | `Guid` | Obligatorio, no vacío. |
+| `CodigoSerie` | `string` | Obligatorio, trim, no vacío. |
+| `PotenciaGeneradaW` | `decimal` | Mayor o igual a 0. |
+| `Estado` | `EstadoPanelSimulado` | Obligatorio. |
+| `FechaHora` | `DateTime` | Obligatoria, distinta de `default`. |
+
+- Constructor `LecturaPanelSimulado(Guid panelId, string codigoSerie, decimal potenciaGeneradaW, EstadoPanelSimulado estado, DateTime fechaHoraUtc)`.
+- Propiedad calculada `EstaOperativo => Estado == EstadoPanelSimulado.Operativo`.
+
+#### `LecturaNodoSimulado`
+
+| Campo | Tipo | Regla |
+|---|---|---|
+| `NodoId` | `Guid` | Obligatorio, no vacío. |
+| `CodigoNodo` | `string` | Obligatorio, trim, no vacío. |
+| `PotenciaGeneradaW` | `decimal` | Suma de los paneles, limitada por la potencia máxima cuando se informa. |
+| `EnergiaAcumuladaKWh` | `decimal` | Energía anterior más la generada en el intervalo, **sin redondear**. |
+| `FechaHora` | `DateTime` | Obligatoria, distinta de `default`. |
+| `Paneles` | `IReadOnlyList<LecturaPanelSimulado>` | Lista inmutable; puede estar vacía. |
+
+Factory:
+
+```csharp
+public static LecturaNodoSimulado Crear(
+    Guid nodoId,
+    string codigoNodo,
+    IReadOnlyList<LecturaPanelSimulado> paneles,
+    decimal energiaAcumuladaAnteriorKWh,
+    decimal? potenciaMaximaKW,
+    TimeSpan intervalo,
+    DateTime fechaHoraUtc)
+```
+
+Reglas de la factory:
+
+- Valida `nodoId` no vacío, `codigoNodo` obligatorio, `paneles` no nulo, `energiaAcumuladaAnteriorKWh >= 0`, `intervalo > TimeSpan.Zero` y `fechaHoraUtc` distinta de `default`.
+- Si `potenciaMaximaKW` tiene valor, debe ser **mayor o igual a 0**. Es el mismo rango que acepta `Inversor.PotenciaNominalkW` en la aplicación (que permite 0); exigir `> 0` haría fallar todo el tick ante un inversor registrado con 0 kW.
+- `PotenciaGeneradaW = min(suma de paneles, potenciaMaximaKW × 1000)`; si `potenciaMaximaKW` es `null`, no aplica límite.
+- `EnergiaAcumuladaKWh = energiaAcumuladaAnteriorKWh + (PotenciaGeneradaW / 1000) × (decimal)intervalo.TotalSeconds / 3600`.
+
+#### `LecturaParqueSolarSimulado`
+
+| Campo | Tipo | Regla |
+|---|---|---|
+| `ParqueSolarId` | `Guid` | Obligatorio, no vacío. |
+| `NombreParque` | `string` | Obligatorio, trim, no vacío. |
+| `PotenciaGeneradaW` | `decimal` | Suma de la potencia de los nodos. |
+| `EnergiaAcumuladaKWh` | `decimal` | Suma de la energía acumulada de los nodos, sin redondear. |
+| `FechaHora` | `DateTime` | Obligatoria, distinta de `default`. |
+| `Nodos` | `IReadOnlyList<LecturaNodoSimulado>` | Lista inmutable; puede estar vacía. |
+
+Factory:
+
+```csharp
+public static LecturaParqueSolarSimulado Crear(
+    Guid parqueSolarId,
+    string nombreParque,
+    IReadOnlyList<LecturaNodoSimulado> nodos,
+    DateTime fechaHoraUtc)
+```
+
+Reglas de la factory:
+
+- Valida `parqueSolarId` no vacío, `nombreParque` obligatorio, `nodos` no nulo y `fechaHoraUtc` distinta de `default`.
+- `PotenciaGeneradaW = suma de la potencia de los nodos`.
+- `EnergiaAcumuladaKWh = suma de la energía acumulada de los nodos`.
+
+#### Validaciones del Dominio del simulador
+
+- Todos los identificadores `Guid` deben ser distintos de `Guid.Empty`.
+- Todos los textos obligatorios se normalizan con `Trim` y no pueden quedar vacíos.
+- Las potencias generadas y las energías acumuladas no pueden ser negativas.
+- La potencia de un panel no puede superar su `PotenciaWp`.
+- La energía acumulada se calcula en el Dominio; el orquestador solo aporta el intervalo, la energía anterior y los valores aleatorios.
+- Las validaciones lanzan `ArgumentException`, `ArgumentNullException` o `ArgumentOutOfRangeException` con mensajes en español, igual que las entidades del monolito.
+
+### Contratos del simulador (`SolarUY.Simulador.Contracts`)
+
+- Ocho clases con propiedades `get; set;` y los **mismos nombres y campos** que los DTOs de la sección 2 (`TelemetriaDto`, `TelemetriaParqueSolarDto`, `TelemetriaNodoDto`, `TelemetriaPanelDto`, `TopologiaSimulacionDto`, `ParqueSimulacionDto`, `NodoSimulacionDto`, `PanelSimulacionDto`).
+- Son una copia deliberada: el contrato JSON es el único acoplamiento entre componentes. Se serializan con `JsonSerializerDefaults.Web` (camelCase).
+
+### `IProveedorTopologia`
+
+Ubicación: `SolarUY.Simulador/Simulation/IProveedorTopologia.cs`.
+
+```csharp
+Task<TopologiaSimulacionDto?> ObtenerAsync(CancellationToken cancellationToken);
+```
+
+- Abstracción de "de dónde sale la topología". `null` significa "topología no disponible".
+- Permite que `SimuladorInversor` no conozca HTTP y se pueda probar con un proveedor falso.
 
 ### `ConfiguracionSimulador`
 
-Ubicación: `SolarUY.Simulador/Simulacion/ConfiguracionSimulador.cs`.
+Ubicación: `SolarUY.Simulador/Simulation/ConfiguracionSimulador.cs`.
 
 ```csharp
 public const string Seccion = "Simulador";
@@ -673,48 +722,17 @@ public int EsperaEntreIntentosSegundos { get; set; } = 2;
 - Se valida al arrancar (ver `Program.cs`): `IntervaloSegundos > 0`, `ProbabilidadFalla` en [0, 1], `DuracionFallaTicks > 0`, `VariacionMaxima` en [0, 1], `DesfaseHorarioUruguayHoras` en [-12, 12], `IntentosEnvio >= 1` y `EsperaEntreIntentosSegundos >= 0`.
 - Una configuración inválida detiene el arranque con un mensaje que indica la clave afectada.
 
-### `ConfiguracionSimulacionApi`
-
-Ubicación: `SolarUY.Simulador/Transporte/ConfiguracionSimulacionApi.cs`.
-
-```csharp
-public const string Seccion = "SimulacionApi";
-
-public string UrlBase { get; set; } = "http://app:8080";
-public string ApiKey { get; set; } = string.Empty;
-public int TimeoutSegundos { get; set; } = 10;
-```
-
-- `UrlBase` debe ser una URL absoluta HTTP/HTTPS; `ApiKey` no puede estar vacía; `TimeoutSegundos > 0`.
-- Una configuración inválida detiene el arranque con un mensaje que indica la clave afectada.
-
-### `ClienteTopologia`
-
-Ubicación: `SolarUY.Simulador/Transporte/ClienteTopologia.cs`.
-
-```csharp
-public Task<TopologiaSimulacionDto?> ObtenerAsync(CancellationToken cancellationToken);
-```
-
-- Depende de `HttpClient` (tipado), `IOptions<ConfiguracionSimulacionApi>` e `ILogger<ClienteTopologia>`.
-- Arma `GET api/simulacion/topologia` sobre la `BaseAddress` y agrega el encabezado `AutenticacionComponentes.EncabezadoApiKey` con la key configurada.
-- Deserializa con `JsonSerializerOptions(JsonSerializerDefaults.Web)` y devuelve el DTO para cualquier respuesta `2xx`.
-- Para una respuesta no exitosa, registra una advertencia con el código y un fragmento del body, y devuelve `null`.
-- Captura `HttpRequestException`, `TaskCanceledException` (incluye el timeout) y `JsonException`, registra una advertencia y devuelve `null`. Si el token de cancelación del servicio está cancelado, relanza la cancelación.
-- No registra la API key.
-- Un `null` significa "topología no disponible"; el hosted service omite el tick y no envía telemetría.
-
 ### `SimuladorInversor`
 
-Ubicación: `SolarUY.Simulador/Simulacion/SimuladorInversor.cs`.
+Ubicación: `SolarUY.Simulador/Simulation/SimuladorInversor.cs`.
 
-- Se registra como **singleton**. Es una clase del simulador, sin interfaz de la aplicación.
-- Dependencias: `ClienteTopologia`, `IOptions<ConfiguracionSimulador>`, `TimeProvider` e `ILogger<SimuladorInversor>`.
+- Se registra como **singleton**.
+- Dependencias: `IProveedorTopologia`, `IOptions<ConfiguracionSimulador>`, `TimeProvider` e `ILogger<SimuladorInversor>`.
 - Estado en memoria:
   - `Dictionary<Guid, PanelSimulado> _panelesPorId`;
   - `Dictionary<Guid, decimal> _energiaAcumuladaPorNodo`.
 - `GenerarLecturaAsync(CancellationToken)` devuelve `IReadOnlyList<LecturaParqueSolarSimulado>?`:
-  1. Obtiene la topología con `ClienteTopologia`. Si devuelve `null`, devuelve `null` y no modifica su estado.
+  1. Obtiene la topología con `IProveedorTopologia`. Si devuelve `null`, devuelve `null` y no modifica su estado.
   2. Toma `fechaHoraUtc = _tiempo.GetUtcNow().UtcDateTime` y calcula `horaLocal = fechaHoraUtc.AddHours(DesfaseHorarioUruguayHoras)`.
   3. Recorre los parques de la topología. Para cada nodo, registra su id en `nodosEnTopologia`.
   4. Descarta los nodos cuyo `Estado` no sea `Activo` (`StringComparison.OrdinalIgnoreCase`).
@@ -726,12 +744,11 @@ Ubicación: `SolarUY.Simulador/Simulacion/SimuladorInversor.cs`.
   10. Devuelve la lista de lecturas (puede ser vacía si no hay parques).
 - Si la topología tiene parques pero ningún nodo activo, devuelve una lectura por parque con `0 W`, `nodos: []` y energía 0.
 - Si una excepción de Dominio impide construir una lectura, se propaga al hosted service, que registra el error y omite el tick.
-- No guarda una "última lectura" ni conoce HTTP salvo por `ClienteTopologia`: solo genera.
-- No escribe en la base de datos ni conoce MySQL.
+- No guarda una "última lectura", no conoce HTTP ni MySQL: solo genera.
 
 ### `TelemetriaMapper`
 
-Ubicación: `SolarUY.Simulador/Transporte/TelemetriaMapper.cs`.
+Ubicación: `SolarUY.Simulador/Transport/TelemetriaMapper.cs`.
 
 ```csharp
 public static TelemetriaDto Mapear(IReadOnlyList<LecturaParqueSolarSimulado> lecturas)
@@ -742,11 +759,38 @@ public static TelemetriaDto Mapear(IReadOnlyList<LecturaParqueSolarSimulado> lec
 - Si hay lecturas, `FechaHora` toma la fecha/hora de la primera y `Parques` se mapea en el mismo orden, incluyendo nodos y paneles.
 - `Estado` de panel = `Estado.ToString()` (`Operativo` o `EnFalla`).
 - Redondea `EnergiaAcumuladaKWh` de nodo y de parque a 4 decimales (`MidpointRounding.AwayFromZero`); la potencia ya viene redondeada a 2 decimales desde el Dominio. Por el redondeo, la energía del parque puede diferir de la suma de las de sus nodos hasta en 0,0001 kWh por nodo.
-- El mapeo es manual; no se agrega AutoMapper. Vive en el simulador porque es el único que lo usa.
+- El mapeo es manual; no se agrega AutoMapper.
+
+### `ConfiguracionSimulacionApi`
+
+Ubicación: `SolarUY.Simulador/Transport/ConfiguracionSimulacionApi.cs`.
+
+```csharp
+public const string Seccion = "SimulacionApi";
+public const string EncabezadoApiKey = "X-Api-Key";
+
+public string UrlBase { get; set; } = "http://app:8080";
+public string ApiKey { get; set; } = string.Empty;
+public int TimeoutSegundos { get; set; } = 10;
+```
+
+- `UrlBase` debe ser una URL absoluta HTTP/HTTPS; `ApiKey` no puede estar vacía; `TimeoutSegundos > 0`.
+- Una configuración inválida detiene el arranque con un mensaje que indica la clave afectada.
+
+### `ClienteTopologia`
+
+Ubicación: `SolarUY.Simulador/Transport/ClienteTopologia.cs`. Implementa `IProveedorTopologia`.
+
+- Depende de `HttpClient` (tipado), `IOptions<ConfiguracionSimulacionApi>` e `ILogger<ClienteTopologia>`.
+- Arma `GET api/simulacion/topologia` sobre la `BaseAddress` y agrega el encabezado `ConfiguracionSimulacionApi.EncabezadoApiKey` con la key configurada.
+- Deserializa con `JsonSerializerOptions(JsonSerializerDefaults.Web)` y devuelve el DTO para cualquier respuesta `2xx`.
+- Para una respuesta no exitosa, registra una advertencia con el código y un fragmento del body, y devuelve `null`.
+- Captura `HttpRequestException`, `TaskCanceledException` (incluye el timeout) y `JsonException`, registra una advertencia y devuelve `null`. Si el token de cancelación del servicio está cancelado, relanza la cancelación.
+- No registra la API key.
 
 ### `ClienteTelemetria`
 
-Ubicación: `SolarUY.Simulador/Transporte/ClienteTelemetria.cs`.
+Ubicación: `SolarUY.Simulador/Transport/ClienteTelemetria.cs`.
 
 ```csharp
 public Task<bool> EnviarAsync(TelemetriaDto lectura, CancellationToken cancellationToken);
@@ -755,7 +799,7 @@ public Task<bool> EnviarAsync(TelemetriaDto lectura, CancellationToken cancellat
 - Depende de `HttpClient` (tipado), `IOptions<ConfiguracionSimulacionApi>` e `ILogger<ClienteTelemetria>`.
 - `EnviarAsync`:
   - arma `POST api/simulacion/telemetria` sobre la `BaseAddress`;
-  - agrega el encabezado `AutenticacionComponentes.EncabezadoApiKey` con la key configurada;
+  - agrega el encabezado de la API key;
   - serializa `TelemetriaDto` como JSON (`application/json`, opciones web);
   - devuelve `true` para cualquier respuesta `2xx`;
   - para una respuesta no exitosa, registra una advertencia con el código y un fragmento del body, y devuelve `false`;
@@ -764,7 +808,7 @@ public Task<bool> EnviarAsync(TelemetriaDto lectura, CancellationToken cancellat
 
 ### `SimuladorTelemetriaHostedService`
 
-Ubicación: `SolarUY.Simulador/Simulacion/SimuladorTelemetriaHostedService.cs`.
+Ubicación: `SolarUY.Simulador/Simulation/SimuladorTelemetriaHostedService.cs`.
 
 - Hereda de `BackgroundService`.
 - Dependencias: `SimuladorInversor`, `ClienteTelemetria`, `IOptions<ConfiguracionSimulador>` e `ILogger<SimuladorTelemetriaHostedService>`.
@@ -806,7 +850,7 @@ builder.Services.AddOptions<ConfiguracionSimulacionApi>()
     .Validate(c => c.TimeoutSegundos > 0, "SimulacionApi:TimeoutSegundos debe ser mayor a 0.")
     .ValidateOnStart();
 
-builder.Services.AddHttpClient<ClienteTopologia>(ConfigurarCliente)
+builder.Services.AddHttpClient<IProveedorTopologia, ClienteTopologia>(ConfigurarCliente)
     .ConfigurePrimaryHttpMessageHandler(CrearManejador);
 builder.Services.AddHttpClient<ClienteTelemetria>(ConfigurarCliente)
     .ConfigurePrimaryHttpMessageHandler(CrearManejador);
@@ -846,7 +890,8 @@ static HttpMessageHandler CrearManejador() =>
   "Logging": {
     "LogLevel": {
       "Default": "Information",
-      "Microsoft.Hosting.Lifetime": "Warning"
+      "Microsoft.Hosting.Lifetime": "Warning",
+      "System.Net.Http.HttpClient": "Warning"
     }
   },
   "Simulador": {
@@ -876,8 +921,6 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY SolarUY.Simulador/SolarUY.Simulador.csproj SolarUY.Simulador/
 RUN dotnet restore SolarUY.Simulador/SolarUY.Simulador.csproj
-COPY SolarUY/Domain/ SolarUY/Domain/
-COPY SolarUY/Application/ SolarUY/Application/
 COPY SolarUY.Simulador/ SolarUY.Simulador/
 RUN dotnet publish SolarUY.Simulador/SolarUY.Simulador.csproj -c Release -o /publish --no-restore /p:UseAppHost=false
 
@@ -892,7 +935,7 @@ ENTRYPOINT ["dotnet", "SolarUY.Simulador.dll"]
 ```
 
 - Se usa la imagen `runtime` (no `aspnet`): el simulador es un worker sin ASP.NET Core.
-- Solo se copian los fuentes compartidos (`Domain` y `Application`); `Infrastructure`, `Controllers` y `Views` no entran en el contexto de build del simulador.
+- Solo se copia `SolarUY.Simulador/`: ni el build ni la imagen contienen código del monolito.
 - El simulador no expone puertos.
 
 ### Servicio `simulador` en `docker-compose.yml`
@@ -905,7 +948,7 @@ ENTRYPOINT ["dotnet", "SolarUY.Simulador.dll"]
     restart: unless-stopped
     environment:
       SimulacionApi__UrlBase: http://app:8080
-      SimulacionApi__ApiKey: ${SIMULACION_API_KEY:?definí SIMULACION_API_KEY en .env}
+      SimulacionApi__ApiKey: ${SIMULACION_API_KEY:-SolarUY.Local2026}
     depends_on:
       app:
         condition: service_healthy
@@ -913,7 +956,7 @@ ENTRYPOINT ["dotnet", "SolarUY.Simulador.dll"]
       - solaruy
 ```
 
-- `app` recibe `SimulacionApi__ApiKey: ${SIMULACION_API_KEY:?...}`.
+- `app` recibe `SimulacionApi__ApiKey: ${SIMULACION_API_KEY:-SolarUY.Local2026}`: ambos servicios usan la misma variable con el mismo valor por defecto, por lo que coinciden aunque no se defina nada.
 - El simulador espera únicamente a que `app` esté healthy. `app` ya espera a `mysql` y a `migrate`, por lo que la dependencia transitiva queda cubierta.
 - El simulador **no** recibe `ConnectionStrings__SolarUYDb` ni variables de MySQL.
 - No se publica ningún puerto del simulador.
@@ -922,17 +965,17 @@ ENTRYPOINT ["dotnet", "SolarUY.Simulador.dll"]
 
 ### Variables de entorno
 
-En `.env.example` se agrega:
+En `.env.example` se documenta, comentada, la variable opcional:
 
 ```dotenv
 # --- Simulación interna (mock del inversor) ---
-# API key compartida entre app y simulador. Cambiala en local.
-SIMULACION_API_KEY=SolarUY.Local2026
+# API key compartida entre app y simulador. Es OPCIONAL: si no la definís, docker-compose.yml usa este mismo valor por defecto.
+# SIMULACION_API_KEY=SolarUY.Local2026
 ```
 
-- Cada desarrollador copia el valor a su `.env` local, que está fuera de git. Quien ya tenga un `.env` debe agregar la variable.
-- Si falta la variable, `docker compose` falla con un mensaje explícito antes de levantar los servicios (incluido `docker compose run --rm tools ...`, porque Compose interpola todo el archivo).
-- La key no se escribe en `appsettings.json` versionados ni en los logs.
+- **No hace falta tocar el `.env`**: quien ya tenga uno y haga `git pull` levanta el stack sin agregar nada.
+- Definir `SIMULACION_API_KEY` en el `.env` solo sirve para cambiar la key local.
+- El valor por defecto es solo para desarrollo local (igual que las credenciales de MySQL de `.env.example`); la key no se escribe en los `appsettings.json` versionados ni en los logs.
 
 ### Configuración resultante
 
@@ -958,36 +1001,47 @@ docker compose down -v                # borra datos
 
 ## 7) Pruebas
 
-- Tests xUnit del Dominio (obligatorios), en `SolarUY.Tests/Domain`, siguiendo el estilo de `PanelTests` (`[Fact]`/`[Theory]`, nombres `Metodo_Condicion_Resultado`):
-  - `GeneradorGeneracionSolarTests.cs`:
+- **Monolito (`SolarUY.Tests`)**: no se agregan tests, porque no se modifica el Dominio. No se agregan tests en Application, Infrastructure ni Presentation (regla 5 del flujo de trabajo). La validación de la ingesta, el almacén, la API key y los controladores se verifican con la prueba manual de la sección 9.
+- **Simulador (`SolarUY.Simulador.Tests`)**: proyecto xUnit nuevo, con las mismas versiones de paquetes que `SolarUY.Tests`, una `ProjectReference` a `SolarUY.Simulador` y agregado a `SolarUY.sln` (se ejecuta con `docker compose run --rm tools dotnet test SolarUY.sln`). Estilo de `PanelTests`: `[Fact]`/`[Theory]` y nombres `Metodo_Condicion_Resultado`. Solo prueba lógica pura; no se prueban `ClienteTopologia`, `ClienteTelemetria`, el hosted service ni `Program.cs`.
+  - `Domain/GeneradorGeneracionSolarTests.cs`:
     - factor 0 antes de las 07:00 (incluido 06:59:59), en 07:00 exacto y desde las 19:00; factor 1 a las 13:00; simetría (09:00 y 17:00 dan el mismo factor); usa hora fraccionaria (13:30 es menor que 1 y mayor que el de 15:00);
     - el factor siempre está en [0, 1] para todas las horas del día (`Theory`);
     - potencia 0 con `EnFalla`, 0 fuera de la ventana, igual a `PotenciaWp` a las 13:00 sin variación;
     - variación +10 % a las 13:00 queda acotada a `PotenciaWp`; variación −10 % da `0,9 × PotenciaWp`;
     - la potencia nunca es negativa ni supera `PotenciaWp`, y redondea a 2 decimales;
     - `potenciaWp <= 0` y `variacion` fuera de [-1, 1] lanzan `ArgumentOutOfRangeException`.
-  - `PanelSimuladoTests.cs`:
+  - `Domain/PanelSimuladoTests.cs`:
     - creación válida con trim y estado inicial `Operativo` con 0 ticks;
-    - `PanelId`/`NodoId` vacíos, código vacío o mayor a 50 y potencia `<= 0` lanzan excepción;
+    - `PanelId`/`NodoId` vacíos, código vacío y potencia `<= 0` lanzan excepción;
     - `ActualizarEstado` con `valorAleatorio < probabilidad` pasa a `EnFalla` con `TicksRestantesFalla = duración`; con `valorAleatorio >= probabilidad` se mantiene `Operativo`;
     - con duración N, el panel informa exactamente N lecturas `EnFalla` y la N+1 es `Operativo`;
     - un panel que se recupera no vuelve a fallar en esa misma lectura aunque `valorAleatorio` sea 0;
     - parámetros fuera de rango lanzan excepción;
     - `GenerarLectura` devuelve 0 W en falla y, a las 13:00 sin variación, la potencia registrada.
-  - `LecturaPanelSimuladoTests.cs`: creación válida, trim, validaciones de id, código, potencia negativa y fecha `default`, y `EstaOperativo`.
-  - `LecturaNodoSimuladoTests.cs`:
+  - `Domain/LecturaPanelSimuladoTests.cs`: creación válida, trim, validaciones de id, código, potencia negativa y fecha `default`, y `EstaOperativo`.
+  - `Domain/LecturaNodoSimuladoTests.cs`:
     - la potencia es la suma de los paneles y la lista vacía da 0 W;
     - el límite del inversor se aplica cuando hay potencia máxima, no se aplica con `null` y un límite de 0 kW da 0 W;
     - energía = anterior + kW × horas (por ejemplo, 1000 W durante 5 s suman 1/720 kWh) y **no se redondea**: con 300 W y 5 s la energía crece en cada tick;
-    - validaciones: id vacío, código vacío o demasiado largo, `paneles` nulo, energía anterior negativa, intervalo `<= 0`, potencia máxima negativa y fecha `default`.
-  - `LecturaParqueSolarSimuladoTests.cs`: suma de potencia y de energía de los nodos, lista vacía (0 W, 0 kWh, `Nodos` vacía) y validaciones de id, nombre, `nodos` nulo y fecha `default`.
-- No se agregan tests en Application, Infrastructure, Presentation ni en el simulador (regla 5 del flujo de trabajo). La validación de la ingesta, el almacén, la API key, los clientes HTTP y el orquestador del simulador se verifican con la prueba manual de la sección 9.
-- Los tests no requieren referencias nuevas: `SolarUY.Tests` ya referencia `SolarUY.csproj`.
+    - validaciones: id vacío, código vacío, `paneles` nulo, energía anterior negativa, intervalo `<= 0`, potencia máxima negativa y fecha `default`.
+  - `Domain/LecturaParqueSolarSimuladoTests.cs`: suma de potencia y de energía de los nodos, lista vacía (0 W, 0 kWh, `Nodos` vacía) y validaciones de id, nombre, `nodos` nulo y fecha `default`.
+  - `Simulation/SimuladorInversorTests.cs`, con un `IProveedorTopologia` falso, `ProbabilidadFalla = 0`, `VariacionMaxima = 0` y un `TimeProvider` de prueba fijo en las 16:00 UTC (13:00 en Uruguay):
+    - con un parque que tiene un nodo `Activo` y otro `EnMantenimiento`, solo se simula el activo; el estado se compara sin distinguir mayúsculas;
+    - la potencia del nodo es la suma de sus paneles y respeta el límite del inversor;
+    - la energía acumulada crece entre dos ticks consecutivos;
+    - un parque sin nodos activos devuelve `0 W`, `nodos: []` y energía 0;
+    - una topología sin parques devuelve una lista vacía;
+    - un proveedor que devuelve `null` hace que el resultado sea `null` y no altera el estado (la energía continúa desde el tick anterior);
+    - un panel cuyo `PotenciaWp` cambió se reemplaza y su potencia no supera el nuevo valor;
+    - con `ProbabilidadFalla = 1` los paneles pasan a `EnFalla` con 0 W;
+    - un nodo que deja de estar `Activo` conserva su energía al volver a estarlo, y uno que desaparece de la topología la pierde;
+    - un inversor con 0 kW da 0 W en el nodo.
+  - `Transport/TelemetriaMapperTests.cs`: lista vacía → `FechaHora = null` y `Parques` vacía; orden y valores de parques, nodos y paneles; estado como texto; redondeo de la energía a 4 decimales; `null` lanza `ArgumentNullException`.
 
 ### ArchUnitNET
 
-- `CodeQuality.Tests` no se modifica. Sigue analizando el ensamblado `SolarUY` y sus capas.
-- El proyecto `SolarUY.Simulador` es un componente fuera del ensamblado analizado; no referencia a `SolarUY`, solo comparte fuentes de Dominio, DTOs y `AutenticacionComponentes` por enlace.
+- `CodeQuality.Tests` no se modifica. Sigue analizando el ensamblado `SolarUY` y sus capas; como el monolito no cambia su Dominio y solo agrega código en Application, Infrastructure y Controllers, las reglas existentes siguen siendo las mismas.
+- El simulador es un componente fuera del ensamblado analizado y no comparte código con `SolarUY`.
 - La aplicación mantiene las reglas de capas: `Domain` no depende de nadie, `Application` no depende de `Infrastructure` ni de `Controllers`, y los controladores dependen de abstracciones de `Application`.
 
 ## 8) Evolución a balanceador de carga y réplicas
@@ -1019,7 +1073,7 @@ Esta iteración no implementa el balanceador (requerimiento no funcional de alta
 - [ ] `docker compose up -d --build` deja `mysql` y `app` healthy y `simulador` corriendo.
 - [ ] `docker compose logs simulador` muestra un tick cada 5 segundos, la lectura generada y envíos exitosos.
 - [ ] `GET /api/simulacion/topologia` sin `X-Api-Key` responde `401`; con la key responde `200` y la topología registrada.
-- [ ] `GET /api/telemetria` sin cookie responde `302` hacia `/dev/login`; con el login de desarrollo responde `200` y `fechaHora` cambia cada 5 segundos.
+- [ ] `GET /api/telemetria` sin cookie responde `401`; con el login de desarrollo responde `200` y `fechaHora` cambia cada 5 segundos.
 - [ ] `POST /api/simulacion/telemetria` sin `X-Api-Key` responde `401` y no altera la lectura.
 - [ ] Un payload inválido responde `400` y no altera la lectura.
 - [ ] El contenedor `simulador` no tiene `ConnectionStrings__SolarUYDb` ni variables de MySQL, y su salida de `dotnet publish` no contiene DLL de EF Core ni de MySQL ni el `appsettings.Development.json` del monolito.
@@ -1042,6 +1096,6 @@ Esta iteración no implementa el balanceador (requerimiento no funcional de alta
 - Comandos al inversor: activar/desactivar paneles y volcado de energía a la red.
 - Integración real con sensores ARM o con la API local del inversor.
 - Pantalla de administración o control manual de la simulación.
-- Cambios en OpenID Connect o en el stub de autenticación (incluido que `GET /api/telemetria` redirija en lugar de responder `401`).
+- Cambios en OpenID Connect o en el stub de autenticación.
 - Cambios en el alta y edición de parques, nodos, inversores o paneles.
 - Un usuario de MySQL dedicado y con permisos solo de lectura para el simulador; el simulador no accede a la base de datos.

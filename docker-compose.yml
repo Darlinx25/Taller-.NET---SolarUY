@@ -4,7 +4,7 @@ name: solaruy
 # Es lo único que se despliega y escala; el stack de calidad (SonarQube) vive
 # aparte en ControlCalidad/SonarQube/docker-compose.yml.
 #
-#   docker compose up -d        -> mysql + migrate + app   (http://localhost:5080)
+#   docker compose up -d        -> mysql + migrate + app + simulador   (http://localhost:5080)
 #   docker compose run --rm tools dotnet test
 #
 # Variables: ver .env.example
@@ -66,6 +66,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__SolarUYDb: "Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-SolarUY};User=${MYSQL_APP_USER:-solaruy};Password=${MYSQL_APP_PASSWORD};"
+      SimulacionApi__ApiKey: ${SIMULACION_API_KEY:-SolarUY.Local2026}
     ports:
       - "${APP_PORT:-5080}:8080"
     depends_on:
@@ -79,6 +80,22 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+    networks:
+      - solaruy
+
+  # Mock del inversor: componente independiente. No accede a MySQL; obtiene la topología de `app`
+  # y le envía la telemetría por HTTP (ver ControlCalidad/prompting/req006_mock_inversor).
+  simulador:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.simulador
+    restart: unless-stopped
+    environment:
+      SimulacionApi__UrlBase: http://app:8080
+      SimulacionApi__ApiKey: ${SIMULACION_API_KEY:-SolarUY.Local2026}
+    depends_on:
+      app:
+        condition: service_healthy
     networks:
       - solaruy
 

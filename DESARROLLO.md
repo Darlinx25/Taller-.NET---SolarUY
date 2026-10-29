@@ -83,6 +83,10 @@ LOCAL_GID=1000
 > `root`. En Windows y macOS Docker Desktop los ignora. Para obtenerlos:
 > `id -u` y `id -g`.
 
+> El mock del inversor (`simulador`) **no necesita configuracion**: la API key que comparte con la `app`
+> (`SIMULACION_API_KEY`) tiene un valor por defecto de desarrollo en `docker-compose.yml`. Solo se define
+> en `.env` si se quiere cambiarla.
+
 > El puerto **3307** se usa porque en varias maquinas ya hay un MySQL nativo escuchando en el 3306.
 > El puerto queda publicado solo en `127.0.0.1`, por lo que la base no es accesible desde la red.
 
@@ -94,19 +98,20 @@ LOCAL_GID=1000
 docker compose up -d
 ```
 
-Esto levanta tres servicios:
+Esto levanta cuatro servicios:
 
 | Servicio | Que hace | Como verificarlo |
 | --- | --- | --- |
 | `mysql` | MySQL 8.4 con el volumen `mysqldata` | `docker compose ps` -> `healthy` |
 | `migrate` | Aplica las migraciones de EF Core (`dotnet ef database update`) y termina | `docker compose logs migrate` -> `Done.` |
 | `app` | Publica la API web | <http://localhost:5080> |
+| `simulador` | Mock del inversor: componente independiente que obtiene la topologia de `app` y le envia la telemetria cada 5 s. No accede a MySQL ni publica puertos | `docker compose logs -f simulador` |
 
 Comprobaciones rapidas:
 
 ```bash
 curl http://localhost:5080/health          # {"estado":"ok","baseDeDatos":"operativa"}
-docker compose ps                           # los tres servicios
+docker compose ps                           # mysql y app healthy, simulador running
 docker compose logs --tail 30 app
 ```
 
@@ -121,6 +126,34 @@ docker compose logs --tail 30 app
 ```bash
 docker compose exec mysql mysql -usolaruy -pSolarUY.Local2026 SolarUY
 ```
+
+### 3.2 Verificar el mock del inversor
+
+El `simulador` genera una lectura cada 5 segundos para cada parque registrado y la envia a la `app`
+(`POST /api/simulacion/telemetria`), que conserva solo la ultima en memoria.
+
+```bash
+docker compose logs -f simulador      # lectura generada y envio de cada tick
+docker compose logs -f app            # ingesta de cada lectura
+```
+
+Para consultar la ultima lectura hay que iniciar sesion como Administrador (stub de desarrollo) y
+hacer `GET /api/telemetria` (`204` antes de la primera lectura, `200` despues; sin sesion, `401`):
+
+```bash
+curl -c cookies.txt http://localhost:5080/dev/login
+curl -b cookies.txt http://localhost:5080/api/telemetria
+```
+
+La generacion es 0 W fuera de 07:00-19:00 (hora de Uruguay). Para ver potencia fuera de ese horario
+se puede levantar un simulador efimero con otro desfase horario, por ejemplo:
+
+```bash
+docker run --rm --network solaruy_solaruy   -e SimulacionApi__UrlBase=http://app:8080 -e SimulacionApi__ApiKey=SolarUY.Local2026   -e Simulador__DesfaseHorarioUruguayHoras=-9 solaruy-simulador
+```
+
+(con el servicio `simulador` detenido, para que no pise la lectura). Los endpoints internos exigen el
+encabezado `X-Api-Key`; sin el responden `401`.
 
 ---
 

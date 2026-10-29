@@ -1,0 +1,16 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+
+WORKDIR /src
+COPY SolarUY.Simulador/SolarUY.Simulador.csproj SolarUY.Simulador/
+RUN dotnet restore SolarUY.Simulador/SolarUY.Simulador.csproj
+COPY SolarUY.Simulador/ SolarUY.Simulador/
+RUN dotnet publish SolarUY.Simulador/SolarUY.Simulador.csproj -c Release -o /publish --no-restore /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/runtime:10.0
+
+WORKDIR /app
+COPY --from=build /publish .
+
+USER $APP_UID
+
+ENTRYPOINT ["dotnet", "SolarUY.Simulador.dll"]

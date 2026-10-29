@@ -31,6 +31,7 @@ Como Administrador del sistema SolarUY, quiero que un mock de inversores y senso
 - El mock sustituye a la API local del inversor: no se realizan llamadas a hardware real ni a servicios externos.
 - La aplicación no simula: expone la topología registrada, recibe, valida, conserva y publica la telemetría que le envía el simulador.
 - El simulador no accede a MySQL ni escribe en la base de datos. Toda la topología llega por el endpoint interno.
+- El simulador es independiente de la aplicación: no comparte código con ella y su único acoplamiento es el contrato de los dos endpoints internos, de modo que pueda reemplazarse sin modificar la aplicación.
 - La topología incluye todos los parques y todos sus nodos con el estado registrado. El simulador decide qué simular: solo los nodos con estado `Activo` (sin distinguir mayúsculas de minúsculas).
 - Los paneles se obtienen de los nodos activos; no se inventan paneles, nodos, inversores ni parques que no estén registrados. Si los datos registrados de un panel cambian, la simulación usa los valores nuevos desde la siguiente lectura.
 - Los parques registrados se incluyen aunque no tengan nodos activos; en ese caso informan 0 W, la energía acumulada que resulte de sus nodos activos (0 si no hay ninguno) y una lista de nodos vacía.

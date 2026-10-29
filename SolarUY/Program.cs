@@ -1,10 +1,13 @@
 using System;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
+using SolarUY.Application.Seguridad;
 using SolarUY.Application.Services;
 using SolarUY.Domain.Repositories;
 using SolarUY.Infrastructure.Persistence;
 using SolarUY.Infrastructure.Repositories;
+using SolarUY.Infrastructure.Telemetria;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,9 +36,23 @@ builder.Services.AddScoped<IPanelService, PanelService>();
 builder.Services.AddScoped<ITareaMantenimientoRepository, TareaMantenimientoRepository>();
 builder.Services.AddScoped<ITareaMantenimientoService, TareaMantenimientoService>();
 
+// Telemetría del mock del inversor: la aplicación recibe, valida y conserva la última lectura que envía
+// el simulador (componente separado). La caché es en memoria; con Redis solo cambia esta línea.
+builder.Services.AddDistributedMemoryCache();
+builder.Services.Configure<ConfiguracionAlmacenTelemetria>(
+    builder.Configuration.GetSection(ConfiguracionAlmacenTelemetria.Seccion));
+builder.Services.Configure<ConfiguracionApiSimulacion>(
+    builder.Configuration.GetSection(ConfiguracionApiSimulacion.Seccion));
+builder.Services.AddSingleton<IAlmacenTelemetria, AlmacenTelemetriaCache>();
+builder.Services.AddSingleton<IValidadorApiKey, ValidadorApiKey>();
+builder.Services.AddSingleton<ValidadorTelemetria>();
+builder.Services.AddSingleton<ITelemetriaService, TelemetriaService>();
+builder.Services.AddScoped<ITopologiaSimulacionService, TopologiaSimulacionService>();
+
 // Autenticación por cookies.
 // El proveedor real (OpenIddict / OIDC) se incorpora en una iteración posterior;
 // en Development hay un stub de acceso para el rol Administrador.
+// Los endpoints internos del simulador usan el esquema ApiKey, no la cookie.
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -45,11 +62,20 @@ builder.Services
         options.AccessDeniedPath = "/dev/denegado";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
-    });
+    })
+    .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
+        AutenticacionComponentes.EsquemaApiKey,
+        null);
 
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+if (string.IsNullOrWhiteSpace(app.Configuration[$"{ConfiguracionApiSimulacion.Seccion}:ApiKey"]))
+{
+    app.Logger.LogWarning(
+        "SimulacionApi:ApiKey no está configurada: /api/simulacion/* responderá 401.");
+}
 
 // Configurar el pipeline de requests HTTP.
 if (!app.Environment.IsDevelopment())
