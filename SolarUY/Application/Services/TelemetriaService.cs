@@ -16,18 +16,21 @@ public class TelemetriaService : ITelemetriaService
     private readonly ValidadorTelemetria _validador;
     private readonly IRegistroHistoricoService _registroHistoricoService;
     private readonly ILogger<TelemetriaService> _logger;
+    private readonly ITelemetriaNotifier? _notificador;
 
     public TelemetriaService(
         IAlmacenTelemetria almacen,
         ValidadorTelemetria validador,
         IRegistroHistoricoService registroHistoricoService,
-        ILogger<TelemetriaService> logger)
+        ILogger<TelemetriaService> logger,
+        ITelemetriaNotifier? notificador = null)
     {
         _almacen = almacen ?? throw new ArgumentNullException(nameof(almacen));
         _validador = validador ?? throw new ArgumentNullException(nameof(validador));
         _registroHistoricoService = registroHistoricoService
             ?? throw new ArgumentNullException(nameof(registroHistoricoService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _notificador = notificador;
     }
 
     public Task<TelemetriaDto?> ObtenerUltimaLecturaAsync(CancellationToken cancellationToken = default)
@@ -55,6 +58,18 @@ public class TelemetriaService : ITelemetriaService
             .ConfigureAwait(false);
 
         await _almacen.GuardarAsync(lectura!, cancellationToken).ConfigureAwait(false);
+
+        if (_notificador is not null)
+        {
+            try
+            {
+                await _notificador.NotificarLecturaActualizadaAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "No se pudo notificar la actualización de telemetría.");
+            }
+        }
 
         if (_logger.IsEnabled(LogLevel.Information))
         {

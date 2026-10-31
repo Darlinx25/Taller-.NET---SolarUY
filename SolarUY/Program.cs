@@ -64,6 +64,11 @@ builder.Services.AddSingleton<ValidadorTelemetria>();
 builder.Services.AddScoped<ITelemetriaService, TelemetriaService>();
 builder.Services.AddScoped<ITopologiaSimulacionService, TopologiaSimulacionService>();
 
+// Dashboard de telemetría en vivo
+builder.Services.AddSignalR();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<ITelemetriaNotifier, SolarUY.Services.SignalRTelemetriaNotifier>();
+
 // Autenticación por cookies.
 // El proveedor real (OpenIddict / OIDC) se incorpora en una iteración posterior;
 // en Development hay un stub de acceso para el rol Administrador.
@@ -106,6 +111,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();
+
+app.MapHub<SolarUY.Hubs.TelemetriaHub>("/hubs/telemetria");
 
 app.MapControllerRoute(
         name: "default",
