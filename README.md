@@ -28,7 +28,7 @@
 | Mantenimiento | Tareas | Registro y seguimiento de tareas | Admin/Personal | Pendiente |
 | Monitoreo | Dashboard | Telemetria de energia en vivo via SignalR | Todos | Pendiente |
 | Monitoreo | Alertas | Deteccion de fallos en paneles | Todos | Pendiente |
-| Historicos | Reportes | Metricas de energia por dia/mes/ano | Todos | Pendiente |
+| Historicos | Reportes | Metricas de energia por dia/mes/ano | Todos | Listo |
 | Historicos | Consulta IA | Estado del sistema en lenguaje natural | Todos | Pendiente |
 | Simulacion | Mock Inversor | Simulacion de telemetria y sensores ARM | Admin | Listo |
 
