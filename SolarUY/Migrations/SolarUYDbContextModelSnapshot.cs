@@ -200,6 +200,169 @@ namespace SolarUY.Migrations
                     b.ToTable("ParquesSolares", (string)null);
                 });
 
+            modelBuilder.Entity("SolarUY.Domain.Entities.ResumenDiarioNodo", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("CantidadLecturas")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CodigoNodo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<decimal>("EnergiaKWh")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<int>("Fallas")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("FechaLocal")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("NodoId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<decimal>("PotenciaAcumuladaW")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("PotenciaMaximaW")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("ResumenDiarioParqueId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UltimaFechaHoraUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("UltimoEstado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResumenDiarioParqueId");
+
+                    b.HasIndex("NodoId", "FechaLocal")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ResumenesDiariosNodos_NodoId_FechaLocal");
+
+                    b.ToTable("ResumenesDiariosNodos", (string)null);
+                });
+
+            modelBuilder.Entity("SolarUY.Domain.Entities.ResumenDiarioPanel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("CantidadLecturas")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CodigoSerie")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<decimal>("EnergiaKWh")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<int>("Fallas")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("FechaLocal")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("PanelId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<decimal>("PotenciaAcumuladaW")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("PotenciaMaximaW")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("ResumenDiarioNodoId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UltimaFechaHoraUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("UltimoEstado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResumenDiarioNodoId");
+
+                    b.HasIndex("PanelId", "FechaLocal")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ResumenesDiariosPaneles_PanelId_FechaLocal");
+
+                    b.ToTable("ResumenesDiariosPaneles", (string)null);
+                });
+
+            modelBuilder.Entity("SolarUY.Domain.Entities.ResumenDiarioParque", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("CantidadLecturas")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("EnergiaKWh")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<int>("Fallas")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("FechaLocal")
+                        .HasColumnType("date");
+
+                    b.Property<string>("NombreParque")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<Guid>("ParqueSolarId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<decimal>("PotenciaAcumuladaW")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("PotenciaMaximaW")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("UltimaFechaHoraUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("UltimoEstado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParqueSolarId", "FechaLocal")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ResumenesDiariosParques_ParqueSolarId_FechaLocal");
+
+                    b.ToTable("ResumenesDiariosParques", (string)null);
+                });
+
             modelBuilder.Entity("SolarUY.Domain.Entities.TareaMantenimiento", b =>
                 {
                     b.Property<Guid>("Id")
@@ -295,6 +458,49 @@ namespace SolarUY.Migrations
                     b.Navigation("Nodo");
                 });
 
+            modelBuilder.Entity("SolarUY.Domain.Entities.ResumenDiarioNodo", b =>
+                {
+                    b.HasOne("SolarUY.Domain.Entities.Nodo", null)
+                        .WithMany()
+                        .HasForeignKey("NodoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SolarUY.Domain.Entities.ResumenDiarioParque", "ResumenDiarioParque")
+                        .WithMany("Nodos")
+                        .HasForeignKey("ResumenDiarioParqueId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ResumenDiarioParque");
+                });
+
+            modelBuilder.Entity("SolarUY.Domain.Entities.ResumenDiarioPanel", b =>
+                {
+                    b.HasOne("SolarUY.Domain.Entities.Panel", null)
+                        .WithMany()
+                        .HasForeignKey("PanelId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SolarUY.Domain.Entities.ResumenDiarioNodo", "ResumenDiarioNodo")
+                        .WithMany("Paneles")
+                        .HasForeignKey("ResumenDiarioNodoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ResumenDiarioNodo");
+                });
+
+            modelBuilder.Entity("SolarUY.Domain.Entities.ResumenDiarioParque", b =>
+                {
+                    b.HasOne("SolarUY.Domain.Entities.ParqueSolar", null)
+                        .WithMany()
+                        .HasForeignKey("ParqueSolarId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("SolarUY.Domain.Entities.TareaMantenimiento", b =>
                 {
                     b.HasOne("SolarUY.Domain.Entities.Panel", "Panel")
@@ -310,6 +516,16 @@ namespace SolarUY.Migrations
                 {
                     b.Navigation("Inversor")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("SolarUY.Domain.Entities.ResumenDiarioNodo", b =>
+                {
+                    b.Navigation("Paneles");
+                });
+
+            modelBuilder.Entity("SolarUY.Domain.Entities.ResumenDiarioParque", b =>
+                {
+                    b.Navigation("Nodos");
                 });
 #pragma warning restore 612, 618
         }

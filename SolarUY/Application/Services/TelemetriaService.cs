@@ -14,15 +14,19 @@ public class TelemetriaService : ITelemetriaService
 {
     private readonly IAlmacenTelemetria _almacen;
     private readonly ValidadorTelemetria _validador;
+    private readonly IRegistroHistoricoService _registroHistoricoService;
     private readonly ILogger<TelemetriaService> _logger;
 
     public TelemetriaService(
         IAlmacenTelemetria almacen,
         ValidadorTelemetria validador,
+        IRegistroHistoricoService registroHistoricoService,
         ILogger<TelemetriaService> logger)
     {
         _almacen = almacen ?? throw new ArgumentNullException(nameof(almacen));
         _validador = validador ?? throw new ArgumentNullException(nameof(validador));
+        _registroHistoricoService = registroHistoricoService
+            ?? throw new ArgumentNullException(nameof(registroHistoricoService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -46,12 +50,19 @@ public class TelemetriaService : ITelemetriaService
             return new ResultadoIngestaTelemetria(false, errores);
         }
 
+        await _registroHistoricoService
+            .RegistrarLecturaAsync(lectura!, cancellationToken)
+            .ConfigureAwait(false);
+
         await _almacen.GuardarAsync(lectura!, cancellationToken).ConfigureAwait(false);
 
-        _logger.LogInformation(
-            "Lectura de telemetría recibida: {FechaHora:o}, {CantidadParques} parque(s).",
-            lectura!.FechaHora,
-            lectura.Parques.Count);
+        if (_logger.IsEnabled(LogLevel.Information))
+        {
+            _logger.LogInformation(
+                "Lectura de telemetría recibida: {FechaHora:o}, {CantidadParques} parque(s).",
+                lectura!.FechaHora,
+                lectura.Parques.Count);
+        }
 
         return new ResultadoIngestaTelemetria(true, Array.Empty<string>());
     }

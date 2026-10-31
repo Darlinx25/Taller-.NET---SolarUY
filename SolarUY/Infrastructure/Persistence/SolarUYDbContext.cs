@@ -35,6 +35,21 @@ public class SolarUYDbContext : DbContext
     public DbSet<Panel> Paneles => Set<Panel>();
     public DbSet<TareaMantenimiento> TareasMantenimiento => Set<TareaMantenimiento>();
 
+    /// <summary>
+    /// Resúmenes diarios de generación por parque solar.
+    /// </summary>
+    public DbSet<ResumenDiarioParque> ResumenesDiariosParques => Set<ResumenDiarioParque>();
+
+    /// <summary>
+    /// Resúmenes diarios de generación por nodo.
+    /// </summary>
+    public DbSet<ResumenDiarioNodo> ResumenesDiariosNodos => Set<ResumenDiarioNodo>();
+
+    /// <summary>
+    /// Resúmenes diarios de generación por panel.
+    /// </summary>
+    public DbSet<ResumenDiarioPanel> ResumenesDiariosPaneles => Set<ResumenDiarioPanel>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

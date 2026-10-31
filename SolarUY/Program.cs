@@ -36,6 +36,21 @@ builder.Services.AddScoped<IPanelService, PanelService>();
 builder.Services.AddScoped<ITareaMantenimientoRepository, TareaMantenimientoRepository>();
 builder.Services.AddScoped<ITareaMantenimientoService, TareaMantenimientoService>();
 
+// Históricos de generación: resúmenes diarios persistidos a partir de la telemetría.
+builder.Services.AddOptions<ConfiguracionHistorico>()
+    .Bind(builder.Configuration.GetSection(ConfiguracionHistorico.Seccion))
+    .Validate(
+        configuracion => configuracion.BrechaMaximaSegundos > 0,
+        "Historico:BrechaMaximaSegundos debe ser mayor a 0.")
+    .Validate(
+        configuracion => configuracion.DesfaseHorarioUruguayHoras is >= -12 and <= 12,
+        "Historico:DesfaseHorarioUruguayHoras debe estar entre -12 y 12.")
+    .ValidateOnStart();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<IHistoricoRepository, HistoricoRepository>();
+builder.Services.AddScoped<IRegistroHistoricoService, RegistroHistoricoService>();
+builder.Services.AddScoped<IHistoricoService, HistoricoService>();
+
 // Telemetría del mock del inversor: la aplicación recibe, valida y conserva la última lectura que envía
 // el simulador (componente separado). La caché es en memoria; con Redis solo cambia esta línea.
 builder.Services.AddDistributedMemoryCache();
@@ -46,7 +61,7 @@ builder.Services.Configure<ConfiguracionApiSimulacion>(
 builder.Services.AddSingleton<IAlmacenTelemetria, AlmacenTelemetriaCache>();
 builder.Services.AddSingleton<IValidadorApiKey, ValidadorApiKey>();
 builder.Services.AddSingleton<ValidadorTelemetria>();
-builder.Services.AddSingleton<ITelemetriaService, TelemetriaService>();
+builder.Services.AddScoped<ITelemetriaService, TelemetriaService>();
 builder.Services.AddScoped<ITopologiaSimulacionService, TopologiaSimulacionService>();
 
 // Autenticación por cookies.
