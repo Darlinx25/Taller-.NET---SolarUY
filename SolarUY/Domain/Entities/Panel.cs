@@ -63,6 +63,21 @@ public class Panel
 
     public DateTime FechaCreacion { get; private set; }
 
+    public bool Eliminado { get; private set; }
+
+    public DateTime? FechaEliminacion { get; private set; }
+
+    public void Eliminar()
+    {
+        if (Eliminado)
+        {
+            return;
+        }
+
+        Eliminado = true;
+        FechaEliminacion = DateTime.UtcNow;
+    }
+
     public void ActualizarDatos(
         string codigoSerie,
         string marca,

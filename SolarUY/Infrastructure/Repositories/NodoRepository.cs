@@ -46,6 +46,7 @@ public class NodoRepository : INodoRepository
     public Task<bool> ExisteCodigoAsync(string codigo, Guid parqueSolarId, Guid? nodoIdExcluido = null, CancellationToken cancellationToken = default)
     {
         return _contexto.Nodos
+            .IgnoreQueryFilters()
             .AnyAsync(
                 nodo => nodo.ParqueSolarId == parqueSolarId
                     && nodo.Codigo == codigo
@@ -56,7 +57,7 @@ public class NodoRepository : INodoRepository
     public void Eliminar(Nodo nodo)
     {
         ArgumentNullException.ThrowIfNull(nodo);
-        _contexto.Nodos.Remove(nodo);
+        nodo.Eliminar();
     }
 
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

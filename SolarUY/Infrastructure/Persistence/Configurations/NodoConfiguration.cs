@@ -27,8 +27,19 @@ public class NodoConfiguration : IEntityTypeConfiguration<Nodo>
         builder.Property(nodo => nodo.FechaCreacion)
             .IsRequired();
 
+        builder.Property(nodo => nodo.Eliminado)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(nodo => nodo.FechaEliminacion);
+
         builder.Property(nodo => nodo.ParqueSolarId)
             .IsRequired();
+
+        builder.HasQueryFilter(nodo =>
+            !nodo.Eliminado
+            && nodo.ParqueSolar != null
+            && !nodo.ParqueSolar.Eliminado);
 
         builder.HasOne(nodo => nodo.ParqueSolar)
             .WithMany()

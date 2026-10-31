@@ -89,4 +89,18 @@ public class NodoTests
         nodo.ActualizarDatos("N-01", "   ", "Activo");
         Assert.Null(nodo.Descripcion);
     }
+
+    [Fact]
+    public void Eliminar_MarcaElNodoYSuInversorComoEliminados()
+    {
+        var inversor = new Inversor("Huawei", "SUN2000", "SN123456");
+        var nodo = new Nodo("N-01", Guid.NewGuid(), inversor);
+
+        nodo.Eliminar();
+
+        Assert.True(nodo.Eliminado);
+        Assert.NotNull(nodo.FechaEliminacion);
+        Assert.True(inversor.Eliminado);
+        Assert.NotNull(inversor.FechaEliminacion);
+    }
 }

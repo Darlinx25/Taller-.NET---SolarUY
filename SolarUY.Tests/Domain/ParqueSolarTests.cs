@@ -211,4 +211,29 @@ public class ParqueSolarTests
         Assert.Equal(idOriginal, parque.Id);
         Assert.Equal(fechaCreacionOriginal, parque.FechaCreacion);
     }
+
+    [Fact]
+    public void Eliminar_MarcaElParqueComoEliminadoYRegistraLaFecha()
+    {
+        var parque = new ParqueSolar("Parque Manga", "Ruta 5 km 12");
+
+        parque.Eliminar();
+
+        Assert.True(parque.Eliminado);
+        Assert.NotNull(parque.FechaEliminacion);
+        Assert.Equal(DateTimeKind.Utc, parque.FechaEliminacion!.Value.Kind);
+    }
+
+    [Fact]
+    public void Eliminar_EsIdempotenteYConservaLaFechaOriginal()
+    {
+        var parque = new ParqueSolar("Parque Manga", "Ruta 5 km 12");
+
+        parque.Eliminar();
+        var fechaOriginal = parque.FechaEliminacion;
+
+        parque.Eliminar();
+
+        Assert.Equal(fechaOriginal, parque.FechaEliminacion);
+    }
 }

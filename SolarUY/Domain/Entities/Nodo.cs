@@ -52,6 +52,22 @@ public class Nodo
 
     public DateTime FechaCreacion { get; private set; }
 
+    public bool Eliminado { get; private set; }
+
+    public DateTime? FechaEliminacion { get; private set; }
+
+    public void Eliminar()
+    {
+        if (Eliminado)
+        {
+            return;
+        }
+
+        Eliminado = true;
+        FechaEliminacion = DateTime.UtcNow;
+        Inversor.Eliminar();
+    }
+
     public void ActualizarDatos(string codigo, string? descripcion, string estado)
     {
         ValidarCodigo(codigo);

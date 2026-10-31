@@ -73,6 +73,30 @@ public class ParqueSolar
     public DateTime FechaCreacion { get; private set; }
 
     /// <summary>
+    /// Indica si el parque solar fue dado de baja lógicamente.
+    /// </summary>
+    public bool Eliminado { get; private set; }
+
+    /// <summary>
+    /// Fecha y hora (UTC) de la baja lógica del parque solar.
+    /// </summary>
+    public DateTime? FechaEliminacion { get; private set; }
+
+    /// <summary>
+    /// Marca el parque solar como eliminado sin removerlo físicamente de la base de datos.
+    /// </summary>
+    public void Eliminar()
+    {
+        if (Eliminado)
+        {
+            return;
+        }
+
+        Eliminado = true;
+        FechaEliminacion = DateTime.UtcNow;
+    }
+
+    /// <summary>
     /// Actualiza los datos editables del parque solar, manteniendo su identidad y fecha de alta.
     /// </summary>
     /// <param name="nombre">Nuevo nombre único del parque solar.</param>

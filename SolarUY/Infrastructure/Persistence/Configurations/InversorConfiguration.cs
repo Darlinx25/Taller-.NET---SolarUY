@@ -31,7 +31,20 @@ public class InversorConfiguration : IEntityTypeConfiguration<Inversor>
         builder.Property(inversor => inversor.FechaCreacion)
             .IsRequired();
 
+        builder.Property(inversor => inversor.Eliminado)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(inversor => inversor.FechaEliminacion);
+
         builder.Property(inversor => inversor.NodoId);
+
+        builder.HasQueryFilter(inversor =>
+            !inversor.Eliminado
+            && (inversor.Nodo == null
+                || (!inversor.Nodo.Eliminado
+                    && inversor.Nodo.ParqueSolar != null
+                    && !inversor.Nodo.ParqueSolar.Eliminado)));
 
         builder.HasOne(inversor => inversor.Nodo)
             .WithOne(nodo => nodo.Inversor)

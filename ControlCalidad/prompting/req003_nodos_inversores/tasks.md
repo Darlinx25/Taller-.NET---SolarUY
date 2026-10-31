@@ -4,7 +4,7 @@ Este plan sigue el flujo SDD. Se marca `[x]` al completar. Las tareas están org
 
 ## 1. Preparación y documentación
 - [x] 1.1 Crear carpeta `ControlCalidad/prompting/req003_nodos_inversores/` con `requirements.md`, `specs.md` y `tasks.md`.
-- [x] 1.2 Validar alcance con el usuario (aprobado: req003_nodos_inversores, nodos e inversores juntos, 1:1, código único por parque, desde detalle de ParqueSolar, baja física).
+- [x] 1.2 Validar alcance con el usuario (aprobado: req003_nodos_inversores, nodos e inversores juntos, 1:1, código único por parque, desde detalle de ParqueSolar, baja lógica).
 
 ## 2. Dominio (`SolarUY/Domain`)
 - [x] 2.1 Crear `SolarUY/Domain/Entities/Inversor.cs` con validaciones propias, constructor EF Core + constructor público, `ActualizarDatos(...)`, constantes de longitud.
@@ -12,10 +12,12 @@ Este plan sigue el flujo SDD. Se marca `[x]` al completar. Las tareas están org
 - [x] 2.3 Crear `SolarUY/Domain/Exceptions/NodoNoEncontradoException.cs`.
 - [x] 2.4 Crear `SolarUY/Domain/Exceptions/CodigoNodoDuplicadoException.cs`.
 - [x] 2.5 Crear `SolarUY/Domain/Repositories/INodoRepository.cs` con métodos: `AgregarAsync`, `ObtenerPorIdAsync`, `ObtenerPorParqueAsync`, `ExisteCodigoAsync(string codigo, Guid parqueSolarId, Guid? nodoIdExcluido = null, ...)`, `Eliminar`, `SaveChangesAsync`.
+- [x] 2.6 Agregar `Eliminado` y `FechaEliminacion` a `Nodo` e `Inversor`, con `Eliminar()` idempotente; `Nodo.Eliminar()` marca también su inversor.
 
 ## 3. Pruebas unitarias del Dominio (`SolarUY.Tests/Domain`)
 - [x] 3.1 Crear `SolarUY.Tests/Domain/InversorTests.cs` con tests de creación/validaciones/trims/actualización.
 - [x] 3.2 Crear `SolarUY.Tests/Domain/NodoTests.cs` con tests de creación con inversor, validación de código, unicidad lógica si aplica, actualización y restricciones.
+- [x] 3.3 Agregar tests de baja lógica de `Nodo` e `Inversor`: estado `Eliminado`, fecha y cascada de `Nodo` sobre su inversor.
 
 ## 4. Aplicación (`SolarUY/Application`)
 - [x] 4.1 Crear DTOs: `SolarUY/Application/Dtos/InversorDto.cs`, `SolarUY/Application/Dtos/NodoDto.cs`, `SolarUY/Application/Dtos/NodoDetalleDto.cs`, `SolarUY/Application/Dtos/CrearNodoInversorDto.cs`, `SolarUY/Application/Dtos/EditarNodoInversorDto.cs` con DataAnnotations.
@@ -26,9 +28,10 @@ Este plan sigue el flujo SDD. Se marca `[x]` al completar. Las tareas están org
 - [x] 5.1 Actualizar `SolarUY/Infrastructure/Persistence/SolarUYDbContext.cs` agregando `DbSet<Nodo>` y `DbSet<Inversor>`.
 - [x] 5.2 Crear `SolarUY/Infrastructure/Persistence/Configurations/InversorConfiguration.cs` (tabla `Inversores`, claves, relaciones).
 - [x] 5.3 Crear `SolarUY/Infrastructure/Persistence/Configurations/NodoConfiguration.cs` (tabla `Nodos`, FK a ParqueSolar, índice único `(ParqueSolarId, Codigo)`, relación 1:1 con Inversor).
-- [x] 5.4 Crear `SolarUY/Infrastructure/Repositories/NodoRepository.cs` con `Include` de Inversor/ParqueSolar según corresponda, validación de unicidad por parque.
+- [x] 5.4 Crear `SolarUY/Infrastructure/Repositories/NodoRepository.cs` con `Include` de Inversor/ParqueSolar según corresponda, validación de unicidad por parque y baja lógica en `Eliminar` invocando `nodo.Eliminar()`.
 - [x] 5.5 Registrar servicios/repositorios en `Program.cs` (`builder.Services.AddScoped<INodoService, NodoService>()`, `builder.Services.AddScoped<INodoRepository, NodoRepository>()`).
 - [x] 5.6 Generar y aplicar migración `AgregarNodosEInversores` (`dotnet ef migrations add AgregarNodosEInversores` / aplicar según flujo del repo).
+- [x] 5.7 Configurar columnas `Eliminado`/`FechaEliminacion` y filtros globales encadenados para `Nodo` e `Inversor`; generar la migración `AgregarBorradoLogico`.
 
 ## 6. Presentación (`SolarUY/Controllers`, `SolarUY/Views`)
 - [x] 6.1 Crear `SolarUY/Controllers/NodosController.cs` con `[Authorize(Roles = "Administrador")]`: `Index(parqueId)`, `Create(parqueId)` GET/POST, `Details(id)`, `Edit(id)` GET/POST, `Delete(id)` GET, `DeleteConfirmed(id)` POST con `[ValidateAntiForgeryToken]`. Manejo de excepciones y `TempData`.
@@ -46,7 +49,8 @@ Este plan sigue el flujo SDD. Se marca `[x]` al completar. Las tareas están org
 ## Notas
 - Código único del Nodo **únicamente por ParqueSolar**.
 - Relación **1:1 Nodo-Inversor**.
-- Baja **física** con confirmación.
+- Baja **lógica** con confirmación: nodo e inversor quedan con `Eliminado = true` y dejan de mostrarse, pero no se eliminan filas.
+- Los filtros globales ocultan los nodos e inversores cuyo parque fue eliminado lógicamente.
 - Acceso **desde el detalle del ParqueSolar**.
 - Solo Dominio con tests unitarios obligatorios.
 - No modificar `CodeQuality.Tests` sin autorización explícita.

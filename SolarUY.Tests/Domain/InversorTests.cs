@@ -80,4 +80,16 @@ public class InversorTests
         Assert.Equal("SN2", inversor.NumeroSerie);
         Assert.Equal(20m, inversor.PotenciaNominalkW);
     }
+
+    [Fact]
+    public void Eliminar_MarcaElInversorComoEliminadoYRegistraLaFecha()
+    {
+        var inversor = new Inversor("Marca", "Modelo", "SN1");
+
+        inversor.Eliminar();
+
+        Assert.True(inversor.Eliminado);
+        Assert.NotNull(inversor.FechaEliminacion);
+        Assert.Equal(DateTimeKind.Utc, inversor.FechaEliminacion!.Value.Kind);
+    }
 }

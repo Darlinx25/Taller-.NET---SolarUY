@@ -45,9 +45,24 @@ public class Inversor
 
     public DateTime FechaCreacion { get; private set; }
 
+    public bool Eliminado { get; private set; }
+
+    public DateTime? FechaEliminacion { get; private set; }
+
     public Guid? NodoId { get; private set; }
 
     public Nodo? Nodo { get; private set; }
+
+    public void Eliminar()
+    {
+        if (Eliminado)
+        {
+            return;
+        }
+
+        Eliminado = true;
+        FechaEliminacion = DateTime.UtcNow;
+    }
 
     public void ActualizarDatos(string marca, string modelo, string numeroSerie, decimal? potenciaNominalkW)
     {

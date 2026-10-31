@@ -7,6 +7,7 @@
   - `ObtenerPorIdAsync(Guid id, CancellationToken)`.
   - `ExisteNombreAsync(string nombre, Guid? parqueIdExcluido = null, CancellationToken)`.
   - `Eliminar(ParqueSolar parque)`.
+- [x] 1.4 Agregar `Eliminado` y `FechaEliminacion` a `ParqueSolar` y el método `Eliminar()` para baja lógica idempotente.
 
 ## 2. Tests del Dominio (`SolarUY.Tests`)
 - [x] 2.1 Agregar tests xUnit de `ParqueSolar.ActualizarDatos`:
@@ -19,12 +20,13 @@
   - Capacidad negativa lanza `ArgumentOutOfRangeException`.
   - No modifica `Id` ni `FechaCreacion`.
 - [x] 2.2 Ejecutar los tests del dominio y confirmar que pasan.
+- [x] 2.3 Agregar tests xUnit de la baja lógica de `ParqueSolar`: marca `Eliminado`, registra `FechaEliminacion` y es idempotente.
 
 ## 3. Capa Infrastructure (`SolarUY.Infrastructure`)
 - [x] 3.1 Implementar `ObtenerPorIdAsync` en `ParqueSolarRepository` usando `FirstOrDefaultAsync` (sin `AsNoTracking`).
-- [x] 3.2 Actualizar `ExisteNombreAsync` para excluir opcionalmente el parque indicado por `parqueIdExcluido`.
-- [x] 3.3 Implementar `Eliminar` con `_contexto.ParquesSolares.Remove(parque)`.
-- [x] 3.4 Confirmar que no se requieren cambios en `SolarUYDbContext`, configuraciones ni migraciones.
+- [x] 3.2 Actualizar `ExisteNombreAsync` para excluir opcionalmente el parque indicado por `parqueIdExcluido` e incluir los eliminados lógicamente (la unicidad sigue bloqueada).
+- [x] 3.3 Implementar `Eliminar` invocando `parque.Eliminar()` (baja lógica, sin `Remove`).
+- [x] 3.4 Configurar `Eliminado`/`FechaEliminacion`, el filtro global de consulta y generar la migración `AgregarBorradoLogico`.
 
 ## 4. Capa Application (`SolarUY.Application`)
 - [x] 4.1 Crear `EditarParqueSolarDto` con `Id`, `Nombre`, `Ubicacion` y `CapacidadEstimadaMW`, con DataAnnotations (`[Required]`, `[StringLength]`, `[Range]`).
@@ -39,7 +41,7 @@
   - Invocar `ActualizarDatos` y persistir con `SaveChangesAsync`.
 - [x] 4.5 Implementar `EliminarParqueSolarAsync`:
   - Buscar por id y lanzar `ParqueSolarNoEncontradoException` si no existe.
-  - Invocar `Eliminar` y persistir con `SaveChangesAsync`.
+  - Invocar `Eliminar` (baja lógica) y persistir con `SaveChangesAsync`.
 - [x] 4.6 Ajustar la llamada existente de `CrearParqueSolarAsync` a la nueva firma de `ExisteNombreAsync`.
 
 ## 5. Capa Presentation (`SolarUY.Controllers` + `Views`)
@@ -67,7 +69,9 @@
 - [x] 7.5 Probar manualmente el flujo: listado → detalle → editar → eliminar.
 
 ## Notas
-- No se crea migración porque el esquema de base de datos no cambia.
+- La baja de un parque es lógica: la fila permanece en la base con `Eliminado = true` y `FechaEliminacion`; los filtros globales ocultan el parque y su jerarquía.
+- Los nombres de parques eliminados siguen bloqueados por el índice único y por `ExisteNombreAsync` con `IgnoreQueryFilters`.
+- Se genera la migración `AgregarBorradoLogico`.
 - No se agregan tests para Application, Infrastructure ni Presentation, según la regla 5 del flujo de trabajo.
 - El controlador solo orquesta llamadas a `IParqueSolarService`.
 - El análisis de SonarQube se ejecutó con el `SONAR_TOKEN` local del `.env` de la máquina; el token no se versiona.

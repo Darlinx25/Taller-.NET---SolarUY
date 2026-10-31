@@ -17,6 +17,7 @@ y `specs.md`.
 - [x] 1.2 Crear `SolarUY/Domain/Exceptions/PanelNoEncontradoException.cs` con propiedad `Id`.
 - [x] 1.3 Crear `SolarUY/Domain/Exceptions/CodigoPanelDuplicadoException.cs`.
 - [x] 1.4 Crear `SolarUY/Domain/Repositories/IPanelRepository.cs` con los métodos de `specs.md`.
+- [x] 1.5 Agregar `Eliminado` y `FechaEliminacion` a `Panel` y el método `Eliminar()` para baja lógica idempotente.
 
 ## 2. Tests del Dominio
 
@@ -25,6 +26,7 @@ y `specs.md`.
 - [x] 2.2 Agregar tests de código/serie, marca, modelo, `NodoId`, potencia y observaciones inválidos.
 - [x] 2.3 Agregar tests de `ActualizarDatos` y de inmutabilidad de `Id`, `FechaCreacion` y `NodoId`.
 - [x] 2.4 Ejecutar los tests del dominio.
+- [x] 2.5 Agregar tests de baja lógica de `Panel`: `Eliminado`, `FechaEliminacion` y comportamiento idempotente.
 
 ## 3. Aplicación
 
@@ -40,9 +42,10 @@ y `specs.md`.
 - [x] 4.1 Agregar `DbSet<Panel>` en `SolarUYDbContext`.
 - [x] 4.2 Crear `PanelConfiguration` con longitudes, precisión, FK, cascada e índice único
       `(NodoId, CodigoSerie)`.
-- [x] 4.3 Crear `PanelRepository`.
+- [x] 4.3 Crear `PanelRepository`; su `Eliminar` marca `panel.Eliminar()` en lugar de usar `Remove`.
 - [x] 4.4 Registrar `IPanelRepository` e `IPanelService` en `Program.cs`.
 - [x] 4.5 Generar y aplicar la migración `AgregarPaneles`.
+- [x] 4.6 Configurar `Eliminado`/`FechaEliminacion` y filtro global; generar la migración `AgregarBorradoLogico`.
 
 ## 5. Presentación
 
@@ -75,6 +78,8 @@ y `specs.md`.
 
 ## Notas
 
+- La baja de paneles es lógica: la fila permanece con `Eliminado = true` y `FechaEliminacion`; los filtros globales ocultan también los paneles cuyo nodo o parque fue eliminado.
+- Los códigos/serie de paneles eliminados siguen bloqueados por el índice único y por `ExisteCodigoAsync` con `IgnoreQueryFilters`.
 - Mantener la nomenclatura y estructura existentes en el proyecto.
 - Seguir el patrón de navegación "desde la ficha del padre" usado en req003.
 - No implementar monitoreo, telemetría, alertas ni historial: están fuera de alcance.

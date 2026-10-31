@@ -52,6 +52,7 @@ public class PanelRepository : IPanelRepository
         CancellationToken cancellationToken = default)
     {
         return _contexto.Paneles
+            .IgnoreQueryFilters()
             .AnyAsync(
                 panel => panel.NodoId == nodoId
                     && panel.CodigoSerie == codigo
@@ -62,7 +63,7 @@ public class PanelRepository : IPanelRepository
     public void Eliminar(Panel panel)
     {
         ArgumentNullException.ThrowIfNull(panel);
-        _contexto.Paneles.Remove(panel);
+        panel.Eliminar();
     }
 
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

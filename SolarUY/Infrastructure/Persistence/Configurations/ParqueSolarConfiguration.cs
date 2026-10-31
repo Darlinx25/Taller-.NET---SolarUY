@@ -31,6 +31,14 @@ public class ParqueSolarConfiguration : IEntityTypeConfiguration<ParqueSolar>
         builder.Property(parque => parque.FechaCreacion)
             .IsRequired();
 
+        builder.Property(parque => parque.Eliminado)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(parque => parque.FechaEliminacion);
+
+        builder.HasQueryFilter(parque => !parque.Eliminado);
+
         builder.HasIndex(parque => parque.Nombre)
             .IsUnique()
             .HasDatabaseName("IX_ParquesSolares_Nombre");

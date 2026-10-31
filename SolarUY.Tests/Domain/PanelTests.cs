@@ -224,4 +224,16 @@ public class PanelTests
 
         Assert.Equal("potenciaWp", excepcion.ParamName);
     }
+
+    [Fact]
+    public void Eliminar_MarcaElPanelComoEliminadoYRegistraLaFecha()
+    {
+        var panel = new Panel(NodoId, "PAN-001", "Trina Solar", "TSM-550", 550m);
+
+        panel.Eliminar();
+
+        Assert.True(panel.Eliminado);
+        Assert.NotNull(panel.FechaEliminacion);
+        Assert.Equal(DateTimeKind.Utc, panel.FechaEliminacion!.Value.Kind);
+    }
 }

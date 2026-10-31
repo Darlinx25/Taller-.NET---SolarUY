@@ -33,6 +33,13 @@
   - [x] 5.1 Ejecutar `dotnet test` sobre `CodeQuality.Tests` y confirmar que no existen violaciones de arquitectura (ArchUnitNET).
   - [x] 5.2 Ejecutar el análisis estático con SonarQube (`ControlCalidad/SonarQube/analizar.ps1`) y asegurar que no hay code smells ni código duplicado.
 
+- [x] **6. Soporte de baja lógica para ParqueSolar (consumido por req002)**
+  - [x] 6.1 Agregar `Eliminado` y `FechaEliminacion` a la entidad `ParqueSolar`.
+  - [x] 6.2 Implementar `Eliminar()` como baja lógica idempotente.
+  - [x] 6.3 Escribir tests xUnit del nuevo comportamiento de baja lógica.
+  - [x] 6.4 Configurar la columna `Eliminado` (default `false`), `FechaEliminacion` y el filtro global de consulta.
+  - [x] 6.5 Generar la migración `AgregarBorradoLogico`.
+
 ---
 
 ## Notas de implementación
@@ -41,3 +48,4 @@
 - **Migración:** `20261021234048_AddParqueSolar` crea `ParquesSolares` (`Id char(36)` PK, `Nombre varchar(100)` con índice único, `Ubicacion varchar(200)`, `CapacidadEstimadaMW decimal(18,2)`, `FechaCreacion datetime(6)`) en `utf8mb4`.
 - **Autenticación:** la integración con OpenID Connect queda para una iteración posterior; en `Development` se usa un stub (`/dev/login`) que firma un usuario con rol `Administrador`. El controlador ya queda restringido con `[Authorize(Roles = "Administrador")]`.
 - **Pruebas:** las pruebas xUnit del dominio viven en `SolarUY.Tests` (14 casos). Los guardarraíles de arquitectura quedan en `ControlCalidad/ValidacionDeCodigo/CodeQuality.Tests`.
+- **Baja lógica:** la entidad `ParqueSolar` incorpora `Eliminado`/`FechaEliminacion`, filtro global de consulta y la migración `AgregarBorradoLogico`; la baja se consume desde req002.

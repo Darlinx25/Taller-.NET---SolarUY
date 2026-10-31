@@ -33,6 +33,7 @@ public class ParqueSolarRepository : IParqueSolarRepository
         CancellationToken cancellationToken = default)
     {
         return _contexto.ParquesSolares
+            .IgnoreQueryFilters()
             .AnyAsync(
                 parque => parque.Nombre == nombre
                     && (parqueIdExcluido == null || parque.Id != parqueIdExcluido),
@@ -51,7 +52,7 @@ public class ParqueSolarRepository : IParqueSolarRepository
     {
         ArgumentNullException.ThrowIfNull(parque);
 
-        _contexto.ParquesSolares.Remove(parque);
+        parque.Eliminar();
     }
 
     /// <inheritdoc />

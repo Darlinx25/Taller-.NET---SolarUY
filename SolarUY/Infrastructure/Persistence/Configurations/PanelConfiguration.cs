@@ -37,8 +37,21 @@ public class PanelConfiguration : IEntityTypeConfiguration<Panel>
         builder.Property(panel => panel.FechaCreacion)
             .IsRequired();
 
+        builder.Property(panel => panel.Eliminado)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(panel => panel.FechaEliminacion);
+
         builder.Property(panel => panel.NodoId)
             .IsRequired();
+
+        builder.HasQueryFilter(panel =>
+            !panel.Eliminado
+            && panel.Nodo != null
+            && !panel.Nodo.Eliminado
+            && panel.Nodo.ParqueSolar != null
+            && !panel.Nodo.ParqueSolar.Eliminado);
 
         builder.HasOne(panel => panel.Nodo)
             .WithMany()
