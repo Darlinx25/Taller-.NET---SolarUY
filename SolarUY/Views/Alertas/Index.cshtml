@@ -1,0 +1,86 @@
+@model SolarUY.Application.Dtos.ListadoAlertasDto
+@functions {
+    private static string FormatearFecha(DateTime fecha) => fecha.ToString("yyyy-MM-dd HH:mm:ss");
+
+    private static string FormatearDuracion(TimeSpan duracion) =>
+        $"{(int)duracion.TotalHours:D2}:{duracion.Minutes:D2}:{duracion.Seconds:D2}";
+}
+@{
+    ViewData["Title"] = "Alertas de paneles";
+}
+
+<div class="container mt-4">
+    <h1 class="h3 mb-3">Alertas de paneles</h1>
+
+    <h2 class="h5">Alertas activas (@Model.Activas.Count)</h2>
+
+    @if (Model.Activas.Count == 0)
+    {
+        <div class="alert alert-success" role="alert">Sin alertas activas.</div>
+    }
+    else
+    {
+        <div class="table-responsive mb-4">
+            <table class="table table-sm table-striped">
+                <thead>
+                    <tr>
+                        <th>Parque Solar</th>
+                        <th>Nodo</th>
+                        <th>Panel</th>
+                        <th>Inicio (UTC)</th>
+                        <th>Duración</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var alerta in Model.Activas)
+                    {
+                        <tr>
+                            <td>@alerta.NombreParque</td>
+                            <td>@alerta.CodigoNodo</td>
+                            <td>@alerta.CodigoSerie</td>
+                            <td>@FormatearFecha(alerta.FechaInicioUtc)</td>
+                            <td>@FormatearDuracion(alerta.Duracion)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <h2 class="h5">Historial (últimas 50 alertas cerradas)</h2>
+
+    @if (Model.Historial.Count == 0)
+    {
+        <p class="text-muted">Todavía no hay alertas cerradas.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm table-striped">
+                <thead>
+                    <tr>
+                        <th>Parque Solar</th>
+                        <th>Nodo</th>
+                        <th>Panel</th>
+                        <th>Inicio (UTC)</th>
+                        <th>Fin (UTC)</th>
+                        <th>Duración</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var alerta in Model.Historial)
+                    {
+                        <tr>
+                            <td>@alerta.NombreParque</td>
+                            <td>@alerta.CodigoNodo</td>
+                            <td>@alerta.CodigoSerie</td>
+                            <td>@FormatearFecha(alerta.FechaInicioUtc)</td>
+                            <td>@(alerta.FechaFinUtc.HasValue ? FormatearFecha(alerta.FechaFinUtc.Value) : "-")</td>
+                            <td>@FormatearDuracion(alerta.Duracion)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

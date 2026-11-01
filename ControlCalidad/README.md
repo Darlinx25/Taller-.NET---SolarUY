@@ -35,6 +35,7 @@ Requerimientos:
 | `req006_mock_inversor` | Mock del inversor: componente independiente `SolarUY.Simulador` que obtiene la topologia, genera la telemetria y la envia a la aplicacion (la lectura es efimera; los historicos son de req007) | Implementado |
 | `req007_historicos_generacion` | Historicos de generacion por parque, nodo y panel | Implementado |
 | `req008_dashboard` | Dashboard en vivo con topologia registrada y telemetria por SignalR, sin recarga | Implementado |
+| `req009_alertas` | Alertas por fallos en paneles: registro con historial en MySQL, pantalla `/Alertas` e indicador en vivo por SignalR (acceso sin sesion) | En progreso |
 
 Estados: **Planificado** (solo artefactos), **En progreso** (implementación
 iniciada) e **Implementado** (cerrado con tests y análisis estático).

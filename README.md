@@ -27,7 +27,7 @@
 | Parques | Paneles | Registro de paneles fotovoltaicos | Admin | Listo |
 | Mantenimiento | Tareas | Registro y seguimiento de tareas por panel | Admin | Listo |
 | Monitoreo | Dashboard | Topologia registrada y telemetria de energia en vivo via SignalR, sin recarga | Todos | Listo |
-| Monitoreo | Alertas | Deteccion de fallos en paneles | Todos | Pendiente |
+| Monitoreo | Alertas | Deteccion de fallos en paneles, con historial, pantalla e indicador en vivo | Todos | Listo |
 | Historicos | Reportes | Metricas de energia por dia/mes/ano | Todos | Listo |
 | Historicos | Consulta IA | Estado del sistema en lenguaje natural | Todos | Pendiente |
 | Simulacion | Mock Inversor | Simulacion de telemetria y sensores ARM | Admin | Listo |
@@ -95,6 +95,25 @@ curl -b cookies.txt http://localhost:5080/api/telemetria   # 204 antes de la pri
 La generacion sigue una curva solar (0 W fuera de 07:00-19:00, hora de Uruguay). Un balanceador de carga con
 replicas de la aplicacion y Redis para compartir la ultima lectura es una evolucion prevista que no se incorpora
 todavia; el detalle esta en `ControlCalidad/prompting/req006_mock_inversor/specs.md`.
+
+### Alertas de paneles
+
+Cuando un panel informa el estado `EnFalla` en la telemetria, el sistema abre una alerta; la cierra cuando el panel
+vuelve a `Operativo` o deja de aparecer en la lectura (por ejemplo, si su nodo pasa a mantenimiento). Las alertas se
+guardan en MySQL con su historial (tabla `AlertasPanel`) y no se eliminan. Se ven sin iniciar sesion:
+
+- Pantalla de alertas: <http://localhost:5080/Alertas> (activas y las 50 cerradas mas recientes, con fechas en UTC).
+- Indicador "Alertas" en el menu de todas las pantallas, con la cantidad de alertas activas: se actualiza sin recargar
+  por SignalR cuando se abre o se cierra una alerta.
+
+Para provocar fallos y verlas, se puede levantar un simulador efimero con probabilidad de falla 1 (con el servicio
+`simulador` detenido, para que no pise las lecturas):
+
+```bash
+docker compose stop simulador
+docker run -d --rm --name sim-falla --network solaruy_solaruy -e SimulacionApi__UrlBase=http://app:8080 -e SimulacionApi__ApiKey=SolarUY.Local2026 -e Simulador__IntervaloSegundos=2 -e Simulador__ProbabilidadFalla=1 solaruy-simulador
+docker rm -f sim-falla && docker compose start simulador      # volver a lo normal
+```
 
 ## Metodologia de trabajo: SDD + control de calidad
 

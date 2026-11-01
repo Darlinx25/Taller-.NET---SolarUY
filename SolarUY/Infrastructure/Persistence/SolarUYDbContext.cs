@@ -50,6 +50,11 @@ public class SolarUYDbContext : DbContext
     /// </summary>
     public DbSet<ResumenDiarioPanel> ResumenesDiariosPaneles => Set<ResumenDiarioPanel>();
 
+    /// <summary>
+    /// Alertas por fallos de paneles (con su historial).
+    /// </summary>
+    public DbSet<AlertaPanel> AlertasPanel => Set<AlertaPanel>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

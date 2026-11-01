@@ -19,6 +19,56 @@ namespace SolarUY.Migrations
                 .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
+            modelBuilder.Entity("SolarUY.Domain.Entities.AlertaPanel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("CodigoNodo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("CodigoSerie")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<DateTime?>("FechaFinUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaInicioUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("NodoId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("NombreParque")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<Guid>("PanelId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("ParqueSolarId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FechaFinUtc")
+                        .HasDatabaseName("IX_AlertasPanel_FechaFinUtc");
+
+                    b.HasIndex("NodoId");
+
+                    b.HasIndex("ParqueSolarId");
+
+                    b.HasIndex("PanelId", "FechaInicioUtc")
+                        .HasDatabaseName("IX_AlertasPanel_PanelId_FechaInicioUtc");
+
+                    b.ToTable("AlertasPanel", (string)null);
+                });
+
             modelBuilder.Entity("SolarUY.Domain.Entities.Inversor", b =>
                 {
                     b.Property<Guid>("Id")
@@ -220,7 +270,7 @@ namespace SolarUY.Migrations
                     b.Property<int>("Fallas")
                         .HasColumnType("int");
 
-                    b.Property<DateOnly>("FechaLocal")
+                    b.Property<DateTime>("FechaLocal")
                         .HasColumnType("date");
 
                     b.Property<Guid>("NodoId")
@@ -276,7 +326,7 @@ namespace SolarUY.Migrations
                     b.Property<int>("Fallas")
                         .HasColumnType("int");
 
-                    b.Property<DateOnly>("FechaLocal")
+                    b.Property<DateTime>("FechaLocal")
                         .HasColumnType("date");
 
                     b.Property<Guid>("PanelId")
@@ -327,7 +377,7 @@ namespace SolarUY.Migrations
                     b.Property<int>("Fallas")
                         .HasColumnType("int");
 
-                    b.Property<DateOnly>("FechaLocal")
+                    b.Property<DateTime>("FechaLocal")
                         .HasColumnType("date");
 
                     b.Property<string>("NombreParque")
@@ -424,6 +474,27 @@ namespace SolarUY.Migrations
                     b.HasIndex("PanelId");
 
                     b.ToTable("TareasMantenimiento", (string)null);
+                });
+
+            modelBuilder.Entity("SolarUY.Domain.Entities.AlertaPanel", b =>
+                {
+                    b.HasOne("SolarUY.Domain.Entities.Nodo", null)
+                        .WithMany()
+                        .HasForeignKey("NodoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SolarUY.Domain.Entities.Panel", null)
+                        .WithMany()
+                        .HasForeignKey("PanelId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SolarUY.Domain.Entities.ParqueSolar", null)
+                        .WithMany()
+                        .HasForeignKey("ParqueSolarId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("SolarUY.Domain.Entities.Inversor", b =>

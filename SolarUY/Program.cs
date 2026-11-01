@@ -51,6 +51,12 @@ builder.Services.AddScoped<IHistoricoRepository, HistoricoRepository>();
 builder.Services.AddScoped<IRegistroHistoricoService, RegistroHistoricoService>();
 builder.Services.AddScoped<IHistoricoService, HistoricoService>();
 
+// Alertas por fallos de paneles: se detectan en la ingesta de telemetría y se avisan en vivo por SignalR.
+builder.Services.AddScoped<IAlertaPanelRepository, AlertaPanelRepository>();
+builder.Services.AddScoped<IRegistroAlertasService, RegistroAlertasService>();
+builder.Services.AddScoped<IAlertasService, AlertasService>();
+builder.Services.AddScoped<IAlertasNotifier, SolarUY.Hubs.SignalRAlertasNotifier>();
+
 // Telemetría del mock del inversor: la aplicación recibe, valida y conserva la última lectura que envía
 // el simulador (componente separado). La caché es en memoria; con Redis solo cambia esta línea.
 builder.Services.AddDistributedMemoryCache();

@@ -72,11 +72,14 @@
 
 Contra la aplicación real en Docker (con el simulador en funcionamiento):
 
-- **8.4:** `GET /Dashboard/Index` responde `200` sin sesión ni rol. Carga inicial con la topología (parques, nodos y paneles), generación por parque, nodo y panel, y estado de salud por panel con indicador (badge) y texto (`Operativo`, `EnFalla`, `Sin telemetría`).
+- **8.4:** `GET /Dashboard/Index` responde `200` sin sesión ni rol. Carga inicial con la topología (parques, nodos y paneles), generación por parque, nodo y panel, y estado de salud por panel con indicador (badge) y texto (`Operativo`, `EnFalla`, `Sin telemetría`). *(La primera verificación no comprobó el color del indicador y pasó por alto el defecto descrito en "Correcciones posteriores".)*
 - **8.7:** con el simulador detenido y la aplicación reiniciada (sin lectura), el dashboard muestra el aviso "Sin telemetría disponible", conserva toda la topología, genera `0.00` y marca todos los paneles "Sin telemetría".
 - **8.8:** un cliente SignalR (negociación, WebSocket y handshake del protocolo JSON) conectado a `/hubs/telemetria` recibió el evento `ActualizarTelemetria` cada ~5 s al llegar cada lectura, y `GET /Dashboard/Contenido` devolvió el parcial con la hora de última lectura y las generaciones nuevas. El script de la vista reemplaza solo el contenedor `#dashboardLive` con ese parcial y no recarga la página. No se inspeccionó visualmente en un navegador.
 - **0.4:** se revisaron las reglas y las decisiones del PDF de la Iteración 1 (monolito, ASP.NET Core MVC, SignalR para el monitoreo en vivo); el hub vive en `Hubs/` y ArchUnitNET está en verde.
 
-Correcciones posteriores: `SignalRTelemetriaNotifier` (implementación de `ITelemetriaNotifier`, de Application) estaba en `SolarUY/Services/`, una carpeta fuera de las capas; se movió a `SolarUY/Hubs/` (Presentación) con el namespace `SolarUY.Hubs`.
+Correcciones posteriores:
+
+- **Indicador de falla (criterio 3):** `DashboardService.EsEstadoDeFalla` buscaba los textos `Fallo`, `Error` y `FALLA`, pero el estado del contrato de telemetría es `EnFalla`; por eso `EsFallo` nunca era verdadero y los paneles en falla se mostraban con el badge verde. Ahora detecta `EnFalla`. Verificado en la aplicación real forzando fallas en el simulador: `EnFalla` → badge rojo (`bg-danger`), `Operativo` → verde y `Sin telemetría` → gris.
+- `SignalRTelemetriaNotifier` (implementación de `ITelemetriaNotifier`, de Application) estaba en `SolarUY/Services/`, una carpeta fuera de las capas; se movió a `SolarUY/Hubs/` (Presentación) con el namespace `SolarUY.Hubs`.
 
 Observaciones, sin cambios: el cliente de SignalR se carga desde `cdnjs.cloudflare.com` (requiere conexión a internet) y el dashboard y el hub no exigen sesión (la spec dice "sin restricción por rol").

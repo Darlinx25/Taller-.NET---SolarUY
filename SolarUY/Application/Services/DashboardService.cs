@@ -13,6 +13,7 @@ public class DashboardService : IDashboardService
 {
     private const string EstadoSinTelemetria = "Sin telemetría";
     private const string EstadoDesconocido = "Desconocido";
+    private const string EstadoEnFalla = "EnFalla";
 
     private readonly IParqueSolarRepository _parqueSolarRepository;
     private readonly INodoRepository _nodoRepository;
@@ -152,8 +153,6 @@ public class DashboardService : IDashboardService
 
     private static bool EsEstadoDeFalla(string estado)
     {
-        return string.Equals(estado, "Fallo", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(estado, "Error", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(estado, "FALLA", StringComparison.OrdinalIgnoreCase);
+        return string.Equals(estado, EstadoEnFalla, StringComparison.OrdinalIgnoreCase);
     }
 }

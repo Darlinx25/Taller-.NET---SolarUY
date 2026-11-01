@@ -15,6 +15,7 @@ public class TelemetriaService : ITelemetriaService
     private readonly IAlmacenTelemetria _almacen;
     private readonly ValidadorTelemetria _validador;
     private readonly IRegistroHistoricoService _registroHistoricoService;
+    private readonly IRegistroAlertasService _registroAlertasService;
     private readonly ILogger<TelemetriaService> _logger;
     private readonly ITelemetriaNotifier? _notificador;
 
@@ -22,6 +23,7 @@ public class TelemetriaService : ITelemetriaService
         IAlmacenTelemetria almacen,
         ValidadorTelemetria validador,
         IRegistroHistoricoService registroHistoricoService,
+        IRegistroAlertasService registroAlertasService,
         ILogger<TelemetriaService> logger,
         ITelemetriaNotifier? notificador = null)
     {
@@ -29,6 +31,8 @@ public class TelemetriaService : ITelemetriaService
         _validador = validador ?? throw new ArgumentNullException(nameof(validador));
         _registroHistoricoService = registroHistoricoService
             ?? throw new ArgumentNullException(nameof(registroHistoricoService));
+        _registroAlertasService = registroAlertasService
+            ?? throw new ArgumentNullException(nameof(registroAlertasService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _notificador = notificador;
     }
@@ -54,6 +58,10 @@ public class TelemetriaService : ITelemetriaService
         }
 
         await _registroHistoricoService
+            .RegistrarLecturaAsync(lectura!, cancellationToken)
+            .ConfigureAwait(false);
+
+        await _registroAlertasService
             .RegistrarLecturaAsync(lectura!, cancellationToken)
             .ConfigureAwait(false);
 
