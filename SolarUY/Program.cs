@@ -1,6 +1,9 @@
 using System;
+using System.Security.Claims;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.EntityFrameworkCore;
 using SolarUY.Application.Seguridad;
 using SolarUY.Application.Services;
@@ -75,12 +78,21 @@ builder.Services.AddSignalR();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<ITelemetriaNotifier, SolarUY.Hubs.SignalRTelemetriaNotifier>();
 
-// Autenticación por cookies.
-// El proveedor real (OpenIddict / OIDC) se incorpora en una iteración posterior;
-// en Development hay un stub de acceso para el rol Administrador.
+// Autenticación externa mediante OpenID Connect + sesión local con cookies.
 // Los endpoints internos del simulador usan el esquema ApiKey, no la cookie.
-builder.Services
-    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+var oidcAuthority = builder.Configuration["Authentication:Oidc:Authority"];
+var oidcClientId = builder.Configuration["Authentication:Oidc:ClientId"];
+var oidcConfigurado = !string.IsNullOrWhiteSpace(oidcAuthority) && !string.IsNullOrWhiteSpace(oidcClientId);
+
+var authBuilder = builder.Services
+    .AddAuthentication(options =>
+    {
+        options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = oidcConfigurado
+            ? OpenIdConnectDefaults.AuthenticationScheme
+            : CookieAuthenticationDefaults.AuthenticationScheme;
+    })
     .AddCookie(options =>
     {
         options.LoginPath = "/dev/login";
@@ -88,10 +100,60 @@ builder.Services
         options.AccessDeniedPath = "/dev/denegado";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
-    })
-    .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
-        AutenticacionComponentes.EsquemaApiKey,
-        null);
+    });
+
+if (oidcConfigurado)
+{
+    authBuilder.AddOpenIdConnect("oidc", options =>
+    {
+        options.Authority = oidcAuthority;
+        options.ClientId = oidcClientId;
+        options.ClientSecret = builder.Configuration["Authentication:Oidc:ClientSecret"];
+        options.CallbackPath = builder.Configuration["Authentication:Oidc:CallbackPath"] ?? "/signin-oidc";
+        options.ResponseType = builder.Configuration["Authentication:Oidc:ResponseType"] ?? "code";
+        options.SaveTokens = true;
+        options.GetClaimsFromUserInfoEndpoint = true;
+        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+
+        options.Scope.Clear();
+        options.Scope.Add("openid");
+        options.Scope.Add("profile");
+        options.Scope.Add("email");
+
+        options.Events = new OpenIdConnectEvents
+        {
+            OnTokenValidated = context =>
+            {
+                var claimsIdentity = context.Principal?.Identity as ClaimsIdentity;
+                if (claimsIdentity is null)
+                {
+                    return Task.CompletedTask;
+                }
+
+                string[] roleClaims = ["roles", "role", "groups", "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
+                foreach (var claimType in roleClaims)
+                {
+                    if (context.Principal?.HasClaim(c => c.Type == claimType) == true)
+                    {
+                        foreach (var claim in context.Principal.FindAll(claimType))
+                        {
+                            if (!claimsIdentity.HasClaim(ClaimTypes.Role, claim.Value))
+                            {
+                                claimsIdentity.AddClaim(new Claim(ClaimTypes.Role, claim.Value));
+                            }
+                        }
+                    }
+                }
+
+                return Task.CompletedTask;
+            }
+        };
+    });
+}
+
+authBuilder.AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
+    AutenticacionComponentes.EsquemaApiKey,
+    null);
 
 builder.Services.AddAuthorization();
 

@@ -20,7 +20,7 @@
 
 | Modulo | Funcionalidad | Descripcion | Rol | Estado |
 | --- | --- | --- | --- | --- |
-| Seguridad | Login OIDC | Autenticacion externa OpenID Connect | Publico | Pendiente (stub de desarrollo activo) |
+| Seguridad | Login OIDC | Autenticacion externa OpenID Connect (delegación al IdP, cookies, mapeo de roles, `[Authorize(Roles="Administrador")]`) - req010 | Publico | Implementado |
 | Seguridad | Permisos | Control de roles (Admin / Operador) | Sistema | En curso (stub de desarrollo activo) |
 | Parques | Parques | Gestion CRUD de parques solares | Admin | Listo |
 | Parques | Nodos | Configuracion de nodos e inversores | Admin | Listo |
