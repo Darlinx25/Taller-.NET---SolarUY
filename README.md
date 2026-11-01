@@ -82,8 +82,9 @@ La guia completa de instalacion para cada equipo esta en [DESARROLLO.md](DESARRO
 ### Verificacion del mock del inversor
 
 El simulador genera una lectura cada 5 segundos para cada parque registrado y la envia a la aplicacion
-(`POST /api/simulacion/telemetria`, autenticado con API key). La aplicacion conserva solo la ultima lectura,
-en memoria (sin persistencia ni migraciones), y la expone al Administrador:
+(`POST /api/simulacion/telemetria`, autenticado con API key). La aplicacion conserva la ultima lectura en
+memoria (se pierde al reiniciar) y la expone al Administrador; los resumenes diarios para los historicos
+(req007) los persiste aparte, y el dashboard (req008) se actualiza por SignalR:
 
 ```bash
 docker compose logs -f simulador                  # lectura generada y envio de cada tick

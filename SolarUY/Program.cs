@@ -67,7 +67,7 @@ builder.Services.AddScoped<ITopologiaSimulacionService, TopologiaSimulacionServi
 // Dashboard de telemetría en vivo
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
-builder.Services.AddScoped<ITelemetriaNotifier, SolarUY.Services.SignalRTelemetriaNotifier>();
+builder.Services.AddScoped<ITelemetriaNotifier, SolarUY.Hubs.SignalRTelemetriaNotifier>();
 
 // Autenticación por cookies.
 // El proveedor real (OpenIddict / OIDC) se incorpora en una iteración posterior;

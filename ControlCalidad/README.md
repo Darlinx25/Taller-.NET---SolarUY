@@ -32,7 +32,7 @@ Requerimientos:
 | `req003_nodos_inversores` | Nodos e inversores por parque solar (Administrador) | Implementado |
 | `req004_gestion_paneles` | Paneles fotovoltaicos por nodo (Administrador) | Implementado |
 | `req005_registro_seguimiento_tareas_mantenimiento` | Registro y seguimiento de tareas de mantenimiento por panel (Administrador) | Implementado |
-| `req006_mock_inversor` | Mock del inversor: componente independiente `SolarUY.Simulador` que obtiene la topologia, genera la telemetria y la envia a la aplicacion (sin persistencia) | En progreso |
+| `req006_mock_inversor` | Mock del inversor: componente independiente `SolarUY.Simulador` que obtiene la topologia, genera la telemetria y la envia a la aplicacion (la lectura es efimera; los historicos son de req007) | Implementado |
 | `req007_historicos_generacion` | Historicos de generacion por parque, nodo y panel | Implementado |
 | `req008_dashboard` | Dashboard en vivo con topologia registrada y telemetria por SignalR, sin recarga | Implementado |
 
@@ -44,6 +44,8 @@ cobertura no reportada 0% y duplicación nueva 9,4%; 0 defectos).
 Nota: req005 y req008 se cierran con build y tests en verde y deuda aceptada de
 SonarQube (gate en ERROR por cobertura nueva no reportada 0%, duplicación nueva
 5,7% y 8 hallazgos menores en `SolarUY.Simulador`).
+Nota: req006 (mock del inversor) pasa a Implementado con ese mismo análisis de SonarQube,
+que incluye `SolarUY.Simulador`; sus 8 hallazgos menores quedan como deuda aceptada.
 
 Reglas de uso (definidas en `/agents/rules/6_flujo_trabajo_ia.md`):
 

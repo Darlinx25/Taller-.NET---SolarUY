@@ -5,8 +5,18 @@
 
 <h1>Detalle de tarea de mantenimiento</h1>
 
+@if (TempData["Mensaje"] is string mensaje)
+{
+    <div class="alert alert-success" role="alert">@mensaje</div>
+}
+
+@if (TempData["Error"] is string error)
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+
 <div class="alert alert-info">
-    <strong>Panel:</strong> @Model.PanelCodigoSerie
+    <strong>Parque Solar:</strong> @Model.ParqueSolarNombre &rarr; <strong>Nodo:</strong> @Model.NodoCodigo &rarr; <strong>Panel:</strong> @Model.PanelCodigoSerie
 </div>
 
 <dl class="row">

@@ -9,7 +9,7 @@
 @if (tarea != null)
 {
     <div class="alert alert-info">
-        <strong>Panel:</strong> @tarea.PanelCodigoSerie
+        <strong>Parque Solar:</strong> @tarea.ParqueSolarNombre &rarr; <strong>Nodo:</strong> @tarea.NodoCodigo &rarr; <strong>Panel:</strong> @tarea.PanelCodigoSerie
     </div>
     @if (string.Equals(tarea.Estado, "Completada", StringComparison.OrdinalIgnoreCase) || string.Equals(tarea.Estado, "Cancelada", StringComparison.OrdinalIgnoreCase))
     {

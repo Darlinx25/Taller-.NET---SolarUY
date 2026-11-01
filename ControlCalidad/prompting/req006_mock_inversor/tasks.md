@@ -126,7 +126,7 @@
 
 - [x] 9.1 Build completo: `docker compose run --rm tools dotnet build SolarUY.sln` sin errores.
 - [x] 9.2 Tests completos: `docker compose run --rm tools dotnet test SolarUY.sln` con `SolarUY.Tests`, `SolarUY.Simulador.Tests` y ArchUnitNET en verde.
-- [ ] 9.3 Ejecutar SonarQube con `./ControlCalidad/SonarQube/analizar.ps1` (Windows) o `analizar.sh` (Linux/macOS) y registrar hallazgos (el análisis compila `SolarUY.sln`, por lo que incluye al simulador). **(pendiente: no hay `SONAR_TOKEN` en el `.env` local; ver evidencias)**
+- [x] 9.3 Ejecutar SonarQube con `./ControlCalidad/SonarQube/analizar.ps1` (Windows) o `analizar.sh` (Linux/macOS) y registrar hallazgos (el análisis compila `SolarUY.sln`, por lo que incluye al simulador). **(ejecutado por el equipo al cerrar req005/req008: el análisis compila `SolarUY.sln` e incluye `SolarUY.Simulador`; ver evidencias)**
 - [x] 9.4 Prueba manual completa:
   - `docker compose up -d --build`;
   - `docker compose ps` y `docker compose logs simulador`;
@@ -149,7 +149,7 @@
 
 ## Notas
 
-- La telemetría es efímera: no hay persistencia, `DbSet`, configuración Fluent API ni migración.
+- En este requerimiento la telemetría es efímera: no hay persistencia, `DbSet`, configuración Fluent API ni migración. Los resúmenes históricos y su migración pertenecen a `req007_historicos_generacion`.
 - El simulador es un worker de consola independiente: no expone endpoints ni puertos, no accede a MySQL, no referencia el proyecto `SolarUY` ni comparte código con él. El único acoplamiento es el contrato JSON (DTOs duplicados a propósito en ambos lados).
 - La aplicación es la única que accede a MySQL y la única que conoce la topología registrada.
 - La última lectura vive detrás de `IAlmacenTelemetria` asíncrono sobre `IDistributedCache`; hoy memoria, mañana Redis sin cambiar controladores ni simulador.
@@ -170,5 +170,5 @@
 - **Resiliencia:** con `app` detenida el simulador sigue corriendo y registra `No se pudo obtener la topología` / `Topología no disponible: se omite el tick`; al volver `app`, la telemetría se reanuda sin reiniciarlo y la energía continúa. Al reiniciar el simulador la energía vuelve a cero.
 - **Independencia del simulador:** `docker compose config` muestra que `simulador` solo depende de `app` y no recibe `ConnectionStrings__SolarUYDb` ni variables de MySQL; `dotnet publish` del simulador solo contiene su `appsettings.json` y ninguna DLL de EF Core, MySQL ni ASP.NET Core; `grep` confirma que no referencia EF Core, MySQL ni cadenas de conexión.
 - **Dependencias de capas:** los archivos nuevos de `SolarUY/Application/` no usan EF Core, ASP.NET Core, `Infrastructure` ni `Controllers` (el `using Microsoft.AspNetCore.Http` de `TareaMantenimientoService`, de req005, es previo); los controladores nuevos no usan repositorios ni `DbContext`.
-- **SonarQube (pendiente):** no hay `SONAR_TOKEN` en el `.env` local. Falta ejecutar `./ControlCalidad/SonarQube/analizar.ps1` y registrar los hallazgos; con eso el requerimiento pasa a `Implementado` en `ControlCalidad/README.md` (hoy figura `En progreso`).
+- **SonarQube:** el equipo ejecutó el análisis sobre `SolarUY.sln` (incluye `SolarUY.Simulador`) al cerrar req005 y req008. Según la nota de `ControlCalidad/README.md`, el gate quedó en ERROR por cobertura nueva no reportada (0 %) y duplicación nueva (5,7 %), con 8 hallazgos menores en `SolarUY.Simulador` aceptados como deuda. Esos hallazgos no se revisaron uno por uno en este requerimiento; con eso `req006` figura como `Implementado` en `ControlCalidad/README.md`.
 - **Ajustes surgidos de la verificación:** (1) `GET /api/telemetria` sin sesión responde `401`, no `302` (spec y tareas corregidas); (2) se bajó a `Warning` el log de `Microsoft.EntityFrameworkCore.Database.Command` en la app y de `System.Net.Http.HttpClient` en el simulador, porque la topología se consulta cada 5 s; (3) el hosted service usa `Transport` (spec ajustada).

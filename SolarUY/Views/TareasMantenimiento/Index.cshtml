@@ -6,10 +6,20 @@
 
 <h1>Tareas de mantenimiento</h1>
 
+@if (TempData["Mensaje"] is string mensaje)
+{
+    <div class="alert alert-success" role="alert">@mensaje</div>
+}
+
+@if (TempData["Error"] is string error)
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+
 @if (panel != null)
 {
     <div class="alert alert-info">
-        <strong>Panel:</strong> @panel.CodigoSerie
+        <strong>Parque Solar:</strong> @panel.ParqueSolarNombre &rarr; <strong>Nodo:</strong> @panel.NodoCodigo &rarr; <strong>Panel:</strong> @panel.CodigoSerie
     </div>
 }
 

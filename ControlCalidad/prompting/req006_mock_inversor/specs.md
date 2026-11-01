@@ -18,6 +18,7 @@ Implementar el mock del inversor como un componente **independiente** del monoli
 - La última lectura vive detrás de `IAlmacenTelemetria`, una interfaz **asíncrona** sobre `IDistributedCache`. Hoy se registra `AddDistributedMemoryCache()`; mañana se cambia a Redis sin tocar controladores ni simulador.
 - La API key es un secreto compartido entre `app` y `simulador`. Se configura por la variable de entorno `SIMULACION_API_KEY`, que **es opcional**: `docker-compose.yml` define un valor por defecto de desarrollo (`SolarUY.Local2026`) para que levantar el stack no requiera ninguna configuración. Para otro entorno se define en el `.env` (fuera de git) o en el entorno del despliegue; los `appsettings.json` versionados la traen vacía.
 - No se agregan `DbSet`, configuraciones Fluent API, tablas ni migraciones.
+- **Evolución posterior a este requerimiento (ya implementada):** `req007_historicos_generacion` agrega `IRegistroHistoricoService` a la ingesta (persiste resúmenes diarios derivados de cada lectura válida y hace que `ITelemetriaService` pase de singleton a scoped) y `req008_dashboard` agrega el notificador `ITelemetriaNotifier` (SignalR). Lo descrito en esta spec corresponde a req006; esos cambios, sin alterar el contrato JSON ni el simulador, se especifican en sus propias specs.
 - El contrato JSON de `GET /api/telemetria` es el de los DTOs de la sección 2 (camelCase), con `204` antes de la primera lectura y `200` después.
 - La consulta es exclusiva del rol `Administrador` con cookie de sesión. Los endpoints internos usan API key, no cookie ni rol de usuario.
 - No se implementa balanceador de carga ni réplicas. Hay una instancia de `app` y una de `simulador`, y la comunicación es directa.
@@ -216,7 +217,7 @@ Reglas:
 - `ObtenerUltimaLecturaAsync` delega en `IAlmacenTelemetria.ObtenerAsync`.
 - `RegistrarLecturaAsync` valida con `ValidadorTelemetria`. Si hay errores, registra una advertencia con la cantidad de errores y el primero, devuelve `EsValida = false` y no modifica el almacén. Si es válida, llama a `GuardarAsync`, registra una línea informativa (fecha/hora y cantidad de parques) y devuelve `EsValida = true` con lista de errores vacía.
 - El servicio no tiene estado propio y no accede a repositorios ni a `DbContext`; no usa `DateTime.Now`.
-- Se registra como singleton porque solo depende del almacén singleton, del validador stateless y del logger.
+- Se registra como singleton porque solo depende del almacén singleton, del validador stateless y del logger. *(Posterior a req006: req007 lo pasa a scoped al agregar `IRegistroHistoricoService`, y req008 le agrega el notificador opcional.)*
 
 ### `ITopologiaSimulacionService` / `TopologiaSimulacionService`
 
@@ -364,7 +365,7 @@ Ubicación: `SolarUY/Infrastructure/Telemetria/ApiKeyAuthenticationHandler.cs`.
 
 ### Migración
 
-**No hay cambios de esquema y no se genera ninguna migración.** La telemetría es efímera y vive en la caché distribuida; la topología se lee de las tablas existentes (`ParquesSolares`, `Nodos`, `Inversores`, `Paneles`) sin modificarlas.
+**Req006 no agrega cambios de esquema ni migraciones.** La última lectura es efímera y vive en la caché distribuida (las tablas de resúmenes diarios son de `req007_historicos_generacion`); la topología se lee de las tablas existentes (`ParquesSolares`, `Nodos`, `Inversores`, `Paneles`) sin modificarlas.
 
 ### Registro de dependencias (`Program.cs`)
 
@@ -1089,9 +1090,9 @@ Esta iteración no implementa el balanceador (requerimiento no funcional de alta
 ## 10) Fuera de alcance
 
 - Implementación del balanceador de carga, réplicas, Redis y Data Protection compartida en esta iteración.
-- Dashboard en vivo, SignalR y cualquier vista de telemetría.
+- Dashboard en vivo, SignalR y cualquier vista de telemetría (cubierto después por `req008_dashboard`).
 - Alertas, notificaciones y detección de fallos para el usuario final.
-- Persistencia de lecturas, históricos y reportes por día, mes o año.
+- Persistencia de lecturas, históricos y reportes por día, mes o año (los históricos los cubre después `req007_historicos_generacion`).
 - Consulta en lenguaje natural.
 - Comandos al inversor: activar/desactivar paneles y volcado de energía a la red.
 - Integración real con sensores ARM o con la API local del inversor.

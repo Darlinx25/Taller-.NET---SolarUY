@@ -3,9 +3,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 using SolarUY.Application.Services;
-using SolarUY.Hubs;
 
-namespace SolarUY.Services;
+namespace SolarUY.Hubs;
 
 public class SignalRTelemetriaNotifier : ITelemetriaNotifier
 {

@@ -130,7 +130,7 @@ docker compose exec mysql mysql -usolaruy -pSolarUY.Local2026 SolarUY
 ### 3.2 Verificar el mock del inversor
 
 El `simulador` genera una lectura cada 5 segundos para cada parque registrado y la envia a la `app`
-(`POST /api/simulacion/telemetria`), que conserva solo la ultima en memoria.
+(`POST /api/simulacion/telemetria`), que conserva la ultima en memoria (los resumenes diarios para los historicos se persisten aparte).
 
 ```bash
 docker compose logs -f simulador      # lectura generada y envio de cada tick

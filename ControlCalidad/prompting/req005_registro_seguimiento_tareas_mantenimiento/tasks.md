@@ -54,7 +54,7 @@
 - [x] 5.6 Crear `SolarUY/Views/TareasMantenimiento/CambiarEstado.cshtml` con campo `QuienCompleta` visible cuando corresponda.
 - [x] 5.7 Crear `SolarUY/Views/TareasMantenimiento/Delete.cshtml` con confirmación explícita de eliminación física.
 - [x] 5.8 Modificar `SolarUY/Views/Paneles/Details.cshtml` agregando enlace "Administrar tareas de mantenimiento" hacia `TareasMantenimiento/Index?panelId=...`.
-- [ ] 5.9 Verificar navegación Parque Solar -> Nodo -> Panel -> TareasMantenimiento.
+- [x] 5.9 Verificar navegación Parque Solar -> Nodo -> Panel -> TareasMantenimiento.
 - [x] 5.10 En `Create` y `CambiarEstado`, obtener el usuario desde `User.Identity?.Name`.
 - [x] 5.11 Reemplazar `catch { }` vacíos por manejo de excepciones esperadas.
 
@@ -68,10 +68,21 @@
 - [x] 7.1 Build: `docker compose run --rm tools dotnet build SolarUY.sln` sin errores.
 - [x] 7.2 Tests: `docker compose run --rm tools dotnet test SolarUY.sln` completo en verde (dominio + ArchUnitNET).
 - [x] 7.3 Ejecutar `./ControlCalidad/SonarQube/analizar.sh` y registrar hallazgos.
-- [ ] 7.4 Prueba manual: crear tarea, asignar, pasar a EnProceso, pasar a Completada registrando QuienCompleta, intentar editar tarea Completada (bloqueado), eliminar con confirmación.
+- [x] 7.4 Prueba manual: crear tarea, asignar, pasar a EnProceso, pasar a Completada registrando QuienCompleta, intentar editar tarea Completada (bloqueado), eliminar con confirmación.
 
 ## Notas
 - Seguir convenciones de nomenclatura y estructura del proyecto.
 - No crear tests unitarios en Application/Infrastructure/Presentation.
 - No modificar `ControlCalidad/ValidacionDeCodigo/CodeQuality.Tests`.
 - Respetar reglas de Clean Architecture y SRP.
+
+## Verificación manual y correcciones posteriores (2026-11-01)
+
+Se recorrió la aplicación real (Docker, sesión de desarrollo y formularios con token antiforgery):
+
+- Navegación verificada por los enlaces de cada pantalla: Parques Solares → Detalle del parque → Nodos → Detalle del nodo → Paneles → Detalle del panel → Tareas de mantenimiento.
+- Flujo de 7.4 verificado: alta de tarea (queda `Pendiente`), `Pendiente` → `EnProceso`, `EnProceso` → `Completada` registrando `QuienCompleta` (si el campo se deja vacío se registra al usuario de la sesión), edición de una tarea `Completada` bloqueada con mensaje de error, y eliminación con pantalla de confirmación. Los datos de prueba se eliminaron.
+- Al verificar se encontraron dos incumplimientos de `requirements.md` y se corrigieron en las vistas de `Views/TareasMantenimiento/`:
+  1. **Contexto jerárquico (criterios 2 y 4, tareas 5.2 y 5.4):** ninguna vista mostraba Parque Solar → Nodo → Panel (solo el código del panel). Ahora Index, Create, Details, Edit, CambiarEstado y Delete lo muestran con los datos que ya traían los DTOs.
+  2. **Resultado de cada operación (criterio 9):** el controlador guardaba `TempData["Mensaje"]`/`TempData["Error"]` pero ninguna vista de tareas los mostraba. Ahora Index, Details y Delete (destinos de las redirecciones) los muestran, igual que Paneles, Nodos y Parques.
+- Pendiente menor: cuando el panel o la tarea no existen, el controlador redirige a `Home/Index`, que no muestra mensajes de `TempData`.

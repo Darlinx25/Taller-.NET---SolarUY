@@ -17,7 +17,7 @@ Como Administrador del sistema SolarUY, quiero que un mock de inversores y senso
 9. Un panel en estado `EnFalla` genera 0 W y vuelve automáticamente al estado `Operativo` después de la cantidad configurada de lecturas.
 10. El simulador arranca con el stack y sigue funcionando aunque no haya parques, nodos o paneles registrados; en ese caso envía una lectura vacía, sin errores. Si la topología no se puede obtener, el simulador omite el tick, registra el error y conserva la última lectura almacenada en la aplicación.
 11. El simulador envía cada lectura a la aplicación mediante `POST /api/simulacion/telemetria`, autenticado como componente interno con la misma API key compartida. La aplicación recibe y valida la lectura.
-12. La aplicación conserva únicamente la última lectura recibida, de forma efímera: no se persiste la telemetría, no se agregan tablas y no se generan migraciones. La lectura se pierde al reiniciar la aplicación.
+12. La aplicación conserva la última lectura recibida de forma efímera: se pierde al reiniciar la aplicación. El mock no persiste la telemetría cruda, no agrega tablas ni genera migraciones. Los resúmenes diarios que se derivan de cada lectura válida para los históricos los persiste `req007_historicos_generacion`, sin cambiar el contrato ni el simulador.
 13. El Administrador puede consultar la última lectura consolidada (parques, nodos y paneles) mediante `GET /api/telemetria`, que responde `204 No Content` antes de la primera lectura y `200 OK` después.
 14. Solo los usuarios autenticados con el rol `Administrador` pueden consultar la lectura. La topología y la ingesta solo aceptan pedidos autenticados del simulador mediante la API key.
 15. Los endpoints internos rechazan con `401` los pedidos sin API key o con una key inválida, sin modificar la última lectura almacenada. Un payload de telemetría inválido se rechaza con `400`.
@@ -44,7 +44,7 @@ Como Administrador del sistema SolarUY, quiero que un mock de inversores y senso
 - La energía acumulada se cuenta desde el arranque del simulador y se reinicia al reiniciarlo. La última lectura se pierde cuando expira o cuando se reinicia la aplicación.
 - Un panel en `EnFalla` genera 0 W durante todas las lecturas en las que permanece en ese estado.
 - La falla es aleatoria, con probabilidad configurable, y se recupera automáticamente después de la cantidad configurada de lecturas. Un panel que se recupera no puede volver a fallar en esa misma lectura.
-- La telemetría es efímera: no se persiste en MySQL y no produce cambios de esquema ni migraciones.
+- La lectura es efímera: este requerimiento no persiste telemetría en MySQL ni produce cambios de esquema ni migraciones. La persistencia de resúmenes históricos es responsabilidad de `req007_historicos_generacion`.
 - Parámetros por defecto del simulador: intervalo de 5 segundos, probabilidad de falla del 5 % por panel en cada lectura, duración de falla de 6 lecturas, variación aleatoria de ±10 % y ventana de generación de 07:00 a 19:00 hora de Uruguay (UTC-3).
 - La API key autentica al componente simulador, no a usuarios finales. No se expone en la interfaz web ni se registra en los logs.
 - La misma API key protege `GET /api/simulacion/topologia` y `POST /api/simulacion/telemetria`. Si está vacía, la aplicación arranca, registra una advertencia y rechaza ambos endpoints con `401`.
@@ -56,9 +56,9 @@ Como Administrador del sistema SolarUY, quiero que un mock de inversores y senso
 ## Fuera de Alcance
 
 - Balanceador de carga, réplicas, caché compartida entre réplicas y sesiones compartidas en esta iteración; solo se documenta y se deja preparado el diseño.
-- Dashboard en vivo y actualización de la interfaz mediante SignalR.
+- Dashboard en vivo y actualización de la interfaz mediante SignalR (cubierto por `req008_dashboard`).
 - Alertas y notificaciones automáticas por fallos de paneles.
-- Persistencia de telemetría, históricos y reportes por día, mes o año.
+- Persistencia de telemetría, históricos y reportes por día, mes o año (los históricos los cubre `req007_historicos_generacion`).
 - Consultas en lenguaje natural.
 - Comandos al inversor: activar/desactivar paneles y activar/desactivar el volcado de energía a la red.
 - Integración real con sensores ARM o con la API local del inversor.

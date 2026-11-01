@@ -6,7 +6,7 @@
 - [x] 0.1 Confirmar que `requirements.md`, `specs.md` y este plan están aprobados.
 - [x] 0.2 Revisar `req002_gestion_parques`, `req003_nodos_inversores`, `req004_gestion_paneles` para imitar nombres y patrones.
 - [x] 0.3 Revisar `SolarUY/Controllers/TelemetriaController.cs`, `SolarUY/Application/Services/ITelemetriaService.cs`, `SolarUY/Application/Services/TelemetriaService.cs`, `SolarUY/Application/Dtos/TelemetriaDto.cs` y `SolarUY/Program.cs` para reutilizar contratos.
-- [ ] 0.4 Revisar reglas en `ControlCalidad/.agents/rules/` y decisiones en `D:\Proyectos\Iteracion 1 Grupo 2 .NET.pdf`.
+- [x] 0.4 Revisar reglas en `ControlCalidad/.agents/rules/` y decisiones en `D:\Proyectos\Iteracion 1 Grupo 2 .NET.pdf`.
 
 ## 1. Dominio (`SolarUY.Domain`)
 - [x] 1.1 Verificar entidades/repositorios en `SolarUY/Domain/`. No crear cambios de dominio ni migración.
@@ -54,11 +54,11 @@
 - [x] 8.1 Ejecutar `docker compose run --rm tools dotnet build SolarUY.sln`
 - [x] 8.2 Ejecutar `docker compose run --rm tools dotnet test SolarUY.sln` (ArchUnitNET en verde)
 - [x] 8.3 Ejecutar `./ControlCalidad/SonarQube/analizar.sh` y registrar hallazgos.
-- [ ] 8.4 Prueba manual: acceder por ruta `/Dashboard/Index` sin restricción por rol. Ver carga inicial. Sin telemetría -> mostrar mensaje. Enviar telemetría -> actualizar vía SignalR. Verificar generación por parque/nodo/panel y estado de salud con indicador + texto por panel.
+- [x] 8.4 Prueba manual: acceder por ruta `/Dashboard/Index` sin restricción por rol. Ver carga inicial. Sin telemetría -> mostrar mensaje. Enviar telemetría -> actualizar vía SignalR. Verificar generación por parque/nodo/panel y estado de salud con indicador + texto por panel.
 - [x] 8.5 Verificar que no se modificó `ControlCalidad/ValidacionDeCodigo/CodeQuality.Tests`.
-- [ ] 8.6 Marcar todas las tareas como `[x]` solo cuando estén completadas y verificadas.
-- [ ] 8.7 Prueba manual: topología sin telemetría visible con aviso y paneles "Sin telemetría".
-- [ ] 8.8 Prueba manual: llegada de telemetría y actualización sin recarga completa.
+- [x] 8.6 Marcar todas las tareas como `[x]` solo cuando estén completadas y verificadas.
+- [x] 8.7 Prueba manual: topología sin telemetría visible con aviso y paneles "Sin telemetría".
+- [x] 8.8 Prueba manual: llegada de telemetría y actualización sin recarga completa.
 
 ## Notas
 - Acceso por ruta, **sin restricción por rol**.
@@ -67,3 +67,16 @@
 - Hub en `SolarUY/Hubs/` (`TelemetriaHub`), respetando convenciones.
 - Presentación solo llama a Application. Domain sin dependencias de SignalR/ASP.NET Core.
 - Respetar decisiones de `Iteracion 1 Grupo 2 .NET.pdf`.
+
+## Verificación manual (2026-11-01)
+
+Contra la aplicación real en Docker (con el simulador en funcionamiento):
+
+- **8.4:** `GET /Dashboard/Index` responde `200` sin sesión ni rol. Carga inicial con la topología (parques, nodos y paneles), generación por parque, nodo y panel, y estado de salud por panel con indicador (badge) y texto (`Operativo`, `EnFalla`, `Sin telemetría`).
+- **8.7:** con el simulador detenido y la aplicación reiniciada (sin lectura), el dashboard muestra el aviso "Sin telemetría disponible", conserva toda la topología, genera `0.00` y marca todos los paneles "Sin telemetría".
+- **8.8:** un cliente SignalR (negociación, WebSocket y handshake del protocolo JSON) conectado a `/hubs/telemetria` recibió el evento `ActualizarTelemetria` cada ~5 s al llegar cada lectura, y `GET /Dashboard/Contenido` devolvió el parcial con la hora de última lectura y las generaciones nuevas. El script de la vista reemplaza solo el contenedor `#dashboardLive` con ese parcial y no recarga la página. No se inspeccionó visualmente en un navegador.
+- **0.4:** se revisaron las reglas y las decisiones del PDF de la Iteración 1 (monolito, ASP.NET Core MVC, SignalR para el monitoreo en vivo); el hub vive en `Hubs/` y ArchUnitNET está en verde.
+
+Correcciones posteriores: `SignalRTelemetriaNotifier` (implementación de `ITelemetriaNotifier`, de Application) estaba en `SolarUY/Services/`, una carpeta fuera de las capas; se movió a `SolarUY/Hubs/` (Presentación) con el namespace `SolarUY.Hubs`.
+
+Observaciones, sin cambios: el cliente de SignalR se carga desde `cdnjs.cloudflare.com` (requiere conexión a internet) y el dashboard y el hub no exigen sesión (la spec dice "sin restricción por rol").
