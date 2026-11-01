@@ -13,7 +13,6 @@ public class TareaMantenimiento
     public const int ObservacionesMaxLength = 1000;
 
     public static readonly string[] EstadosPermitidos = { "Pendiente", "EnProceso", "Completada", "Cancelada" };
-    public static readonly string[] EstadosOrden = { "Pendiente", "EnProceso", "Completada", "Cancelada" };
 
     private TareaMantenimiento()
     {
@@ -40,6 +39,7 @@ public class TareaMantenimiento
         ValidarAsignadoA(asignadoA);
         ValidarFechaObligatoria(fechaVencimiento, nameof(fechaVencimiento));
         ValidarQuienAsigna(quienAsigna);
+        ValidarObservaciones(observaciones);
 
         Id = Guid.NewGuid();
         PanelId = panelId;
@@ -101,6 +101,7 @@ public class TareaMantenimiento
         ValidarDescripcion(descripcion);
         ValidarAsignadoA(asignadoA);
         ValidarFechaObligatoria(fechaVencimiento, nameof(fechaVencimiento));
+        ValidarObservaciones(observaciones);
 
         TipoTarea = tipoTarea.Trim();
         Descripcion = descripcion.Trim();
@@ -112,18 +113,26 @@ public class TareaMantenimiento
     public void CambiarEstado(string nuevoEstado, string? quienCompleta = null)
     {
         if (EsEstadoFinal(Estado))
-            throw new Exceptions.TareaMantenimientoEstadoInvalidoException($"No se puede cambiar el estado desde {Estado}.");
+            throw new Exceptions.TareaMantenimientoEstadoInvalidoException(Estado);
 
         ValidarEstado(nuevoEstado);
 
-        var estadoActualNormalizado = NormalizarEstado(Estado);
+        var estadoActual = NormalizarEstado(Estado);
         var nuevoEstadoNormalizado = NormalizarEstado(nuevoEstado);
 
-        var indiceActual = ObtenerIndiceEstado(estadoActualNormalizado);
-        var indiceNuevo = ObtenerIndiceEstado(nuevoEstadoNormalizado);
+        if (!EsTransicionPermitida(estadoActual, nuevoEstadoNormalizado))
+        {
+            throw new Exceptions.TareaMantenimientoEstadoInvalidoException(
+                $"No se permite pasar de {estadoActual} a {nuevoEstadoNormalizado}.");
+        }
 
-        if (indiceNuevo <= indiceActual)
-            throw new Exceptions.TareaMantenimientoEstadoInvalidoException("Solo se permite avanzar al siguiente estado, no retroceder.");
+        if (string.Equals(nuevoEstadoNormalizado, "Completada", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(quienCompleta))
+                throw new ArgumentException("QuienCompleta es obligatorio al pasar a Completada.", nameof(quienCompleta));
+
+            ValidarQuienCompleta(quienCompleta);
+        }
 
         Estado = nuevoEstadoNormalizado;
 
@@ -132,24 +141,32 @@ public class TareaMantenimiento
 
         if (string.Equals(Estado, "Completada", StringComparison.OrdinalIgnoreCase))
         {
-            if (string.IsNullOrWhiteSpace(quienCompleta))
-                throw new ArgumentException("QuienCompleta es obligatorio al pasar a Completada.", nameof(quienCompleta));
-            QuienCompleta = quienCompleta.Trim();
+            if (FechaInicio == default)
+                FechaInicio = DateTime.UtcNow;
+
+            QuienCompleta = quienCompleta!.Trim();
             if (FechaFinalizacion == default)
                 FechaFinalizacion = DateTime.UtcNow;
         }
 
-        if (string.Equals(Estado, "Cancelada", StringComparison.OrdinalIgnoreCase))
-        {
-            if (FechaFinalizacion == default)
-                FechaFinalizacion = DateTime.UtcNow;
-        }
+        if (string.Equals(Estado, "Cancelada", StringComparison.OrdinalIgnoreCase) && FechaFinalizacion == default)
+            FechaFinalizacion = DateTime.UtcNow;
     }
 
     private static bool EsEstadoFinal(string estado)
     {
         return string.Equals(estado, "Completada", StringComparison.OrdinalIgnoreCase) ||
                string.Equals(estado, "Cancelada", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool EsTransicionPermitida(string estadoActual, string nuevoEstado)
+    {
+        return estadoActual switch
+        {
+            "Pendiente" => nuevoEstado is "EnProceso" or "Cancelada",
+            "EnProceso" => nuevoEstado is "Completada" or "Cancelada",
+            _ => false,
+        };
     }
 
     private static string NormalizarEstado(string estado)
@@ -160,16 +177,6 @@ public class TareaMantenimiento
         if (string.Equals(t, "Completada", StringComparison.OrdinalIgnoreCase)) return "Completada";
         if (string.Equals(t, "Cancelada", StringComparison.OrdinalIgnoreCase)) return "Cancelada";
         return t;
-    }
-
-    private static int ObtenerIndiceEstado(string estado)
-    {
-        var n = NormalizarEstado(estado);
-        for (int i = 0; i < EstadosOrden.Length; i++)
-        {
-            if (string.Equals(EstadosOrden[i], n, StringComparison.OrdinalIgnoreCase)) return i;
-        }
-        throw new Exceptions.TareaMantenimientoEstadoInvalidoException(estado);
     }
 
     private static void ValidarPanelId(Guid panelId)
@@ -208,6 +215,12 @@ public class TareaMantenimiento
             throw new ArgumentException("QuienAsigna es obligatorio.", nameof(quienAsigna));
         if (quienAsigna.Trim().Length > QuienAsignaMaxLength)
             throw new ArgumentException($"QuienAsigna no puede superar los {QuienAsignaMaxLength} caracteres.", nameof(quienAsigna));
+    }
+
+    private static void ValidarQuienCompleta(string quienCompleta)
+    {
+        if (quienCompleta.Trim().Length > QuienCompletaMaxLength)
+            throw new ArgumentException($"QuienCompleta no puede superar los {QuienCompletaMaxLength} caracteres.", nameof(quienCompleta));
     }
 
     private static void ValidarFechaObligatoria(DateTime fecha, string nombre)

@@ -9,11 +9,11 @@ Como usuario del sistema SolarUY, quiero visualizar en un dashboard en tiempo re
 1. El dashboard debe ser accesible por ruta (sin depender obligatoriamente de un enlace en el menú).
 2. El dashboard debe mostrar, en tiempo real, la generación de energía del parque, de cada nodo y de cada panel conectado.
 3. El dashboard debe mostrar el estado de salud de cada panel para identificar rápidamente paneles con fallo. Se debe mostrar tanto un indicador visual como su estado textual.
-4. Las actualizaciones deben recibirse en tiempo real mediante SignalR, sin necesidad de recargar la página.
+4. Las actualizaciones deben recibirse mediante SignalR y reflejarse en la vista sin recargar la página. La vista puede solicitar el estado consolidado al recibir el evento de actualización.
 5. El dashboard debe aprovechar la última lectura de telemetría ya existente en el sistema (`TelemetriaDto` / `ITelemetriaService` / almacén de telemetría).
 6. El acceso al dashboard **NO** debe restringirse por rol. Debe ser accesible para usuarios autenticados según lo que determine la configuración, respetando las decisiones de arquitectura del proyecto.
-7. Si no existe telemetría disponible, el sistema debe mostrar un estado claro ("Sin telemetría disponible").
-8. El dashboard debe reflejar la topología actual (Parques / Nodos / Paneles) tal como se encuentra registrada en el sistema.
+7. Si no existe telemetría disponible, el sistema debe mostrar un aviso claro ("Sin telemetría disponible") y mantener visible la topología registrada, indicando "Sin telemetría" en los paneles que no tengan lectura.
+8. El dashboard debe reflejar toda la topología actual (Parques / Nodos / Paneles) tal como está registrada en el sistema, aunque un parque, nodo o panel todavía no tenga telemetría.
 
 ## Reglas de Negocio
 
@@ -22,6 +22,12 @@ Como usuario del sistema SolarUY, quiero visualizar en un dashboard en tiempo re
 - La visualización en tiempo real se debe implementar con **SignalR**. El Hub debe ubicarse en la capa de Presentación (`Hubs/`), siguiendo las reglas de arquitectura del proyecto y las convenciones de nomenclatura.
 - La lógica de agregación/selección de datos para la vista debe residir en la capa de **Application** (servicio). Los controladores de **Presentation** deben ser "vistas tontas" (solo invocan y renderizan).
 - Tanto la vista MVC como la actualización en tiempo real deben convivir: la vista debe cargar el estado inicial desde el servicio de Application y actualizarse vía SignalR.
+- La topología registrada es la fuente de verdad para parques, nodos y paneles. La telemetría solo aporta generación y estado de salud.
+- `Marca`, `Modelo` y `PotenciaWp` se toman de la topología del panel.
+- La generación y el estado de salud se toman de la última lectura de telemetría cuando existen.
+- Si un panel no tiene telemetría, se muestra generación `0` y estado `Sin telemetría`.
+- No se muestran parques, nodos o paneles que existan solo en la telemetría y no en la topología registrada.
+- La actualización en vivo no debe hacer una recarga completa de la página.
 - El Dominio no debe depender de SignalR ni de ASP.NET Core.
 - Debe respetarse Clean Architecture por capas: Domain / Application / Infrastructure / Presentation.
 - Debe integrarse con la inyección de dependencias en `Program.cs`.

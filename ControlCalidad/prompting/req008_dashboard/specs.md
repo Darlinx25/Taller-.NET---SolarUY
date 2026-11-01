@@ -16,6 +16,11 @@ Implementar un dashboard de monitoreo en tiempo real para visualizar la generaci
 - Dominio **no** debe tener referencias a SignalR ni a ASP.NET Core.
 - Infraestructura **no** debe ser accedida directamente desde Controllers/Views. Solo vía Application.
 - Migración: **NO**. No se agregan entidades, ni DbSets, ni cambios de esquema. Se reutiliza telemetría + topología existente (`ParqueSolar`, `Nodo`, `Panel`).
+- La jerarquía se construye desde la topología registrada: parques, nodos y paneles.
+- La última lectura de telemetría se cruza por `ParqueSolarId`, `NodoId` y `PanelId`.
+- Si falta telemetría para un parque/nodo/panel, se muestran valores `0` y estado `Sin telemetría`.
+- `TieneDatos` indica si existe una lectura de telemetría, pero la topología se renderiza igual.
+- La actualización en vivo se resuelve con SignalR + un endpoint MVC que devuelve el partial actualizado. No se hace `window.location.reload()`.
 - Respetar decisiones de arquitectura tomadas en `Iteracion 1 Grupo 2 .NET.pdf`.
 
 ## 1) Dominio (`SolarUY.Domain`)
@@ -49,7 +54,18 @@ Crear DTOs de vista para el dashboard (en `SolarUY.Application.Dtos/`):
 | Elemento | Tipo | Ubicación | Descripción |
 |---|---|---|---|
 | `IDashboardService` | Interfaz | `Application/Services/` | Caso de uso para obtener el estado inicial del dashboard (topología + última lectura). |
-| `DashboardService` | Implementación | `Application/Services/` | Orquesta: obtiene topología registrada (vía servicios/repositorios existentes) y combina con `ITelemetriaService.ObtenerUltimaLecturaAsync(...)`. Calcula agregados por parque/nodo si aplica. Lógica puramente de Application. Sin acceso directo a `DbContext`. |
+| `DashboardService` | Implementación | `Application/Services/` | Orquesta la topología registrada y la combina con `ITelemetriaService.ObtenerUltimaLecturaAsync(...)`. Lógica puramente de Application. Sin acceso directo a `DbContext`. |
+
+`DashboardService` orquesta:
+- Obtiene todos los parques con `IParqueSolarRepository.ObtenerTodosAsync`.
+- Obtiene los nodos de cada parque con `INodoRepository.ObtenerPorParqueAsync`.
+- Obtiene los paneles de cada nodo con `IPanelRepository.ObtenerPorNodoAsync`.
+- Obtiene la última lectura con `ITelemetriaService.ObtenerUltimaLecturaAsync`.
+- Cruza telemetría por IDs y arma la jerarquía completa.
+- Usa `Marca`, `Modelo` y `PotenciaWp` desde la entidad `Panel`.
+- Usa generación y estado desde la telemetría cuando existen; si no, generación `0` y estado `Sin telemetría`.
+- Calcula la generación total del parque con la telemetría del parque o, si no existe, con la suma de sus nodos.
+- No accede a `DbContext`, SignalR ni Infrastructure.
 
 **Reglas:** Inyección por constructor. Solo depende de `Domain`/contratos de Application. No referencia `Infrastructure` ni `Hubs`/SignalR.
 
@@ -80,14 +96,14 @@ No modificar registros existentes de telemetría.
 ### Controlador y acciones
 | Elemento | Ubicación | Descripción |
 |---|---|---|
-| `DashboardController` | `Controllers/` | Controlador MVC. Acción `Index()` (GET). Debe ser "vista tonta": inyecta `IDashboardService`, obtiene `DashboardTelemetriaViewDto`, pasa a ViewModel/Vista. Sin lógica de negocio/cálculos complejos. |
+| `DashboardController` | `Controllers/` | Controlador MVC. Acciones `Index()` y `Contenido()` (GET). Ambas son "vistas tontas": inyectan `IDashboardService`, obtienen `DashboardTelemetriaViewDto` y lo pasan a la vista o partial. Sin lógica de negocio/cálculos complejos. |
 
 ### Hubs (SignalR)
 | Elemento | Ubicación | Descripción |
 |---|---|---|
 | `TelemetriaHub` | `Hubs/` | Hereda `Hub`. Ubicado en capa Presentation. Respetar convenciones de nomenclatura. **Sin restricción por rol**. |
 
-**Mecanismo de broadcast:** Cuando `ITelemetriaService.RegistrarLecturaAsync` recibe y guarda una lectura válida, se debe notificar a los clientes conectados al `TelemetriaHub` con la información necesaria para actualizar el dashboard. La notificación debe hacerse respetando las fronteras de arquitectura (inyectando `IHubContext<TelemetriaHub>` únicamente donde corresponda).
+**Mecanismo de broadcast:** Cuando `ITelemetriaService.RegistrarLecturaAsync` recibe y guarda una lectura válida, se notifica a los clientes conectados al `TelemetriaHub` mediante el evento `ActualizarTelemetria`. La notificación se hace respetando las fronteras de arquitectura (inyectando `IHubContext<TelemetriaHub>` únicamente donde corresponda). El evento indica que hay una nueva lectura; la vista solicita el estado consolidado al endpoint de partial.
 
 ### Autorización
 - **Sin restricción por rol.** No agregar `[Authorize(Roles = "Administrador")]` al controlador ni al Hub.
@@ -95,11 +111,14 @@ No modificar registros existentes de telemetría.
 ### Vistas
 | Elemento | Ubicación | Descripción |
 |---|---|---|
-| `Index.cshtml` | `Views/Dashboard/` | Vista MVC principal. Debe mostrar jerarquía Parque -> Nodo -> Panel. Mostrar generación por parque/nodo/panel. Mostrar **estado de salud textual + indicador visual** por panel. Incluir estado "Sin telemetría disponible" cuando no hay datos. Conectar cliente SignalR al hub (`/hubs/telemetria`), suscribirse a evento de actualización y refrescar la vista sin recarga. |
+| `Index.cshtml` | `Views/Dashboard/` | Vista MVC principal. Contiene el layout, el aviso de sin telemetría y el script SignalR. |
+| `_DashboardContenido.cshtml` | `Views/Dashboard/` | Partial con la jerarquía Parque -> Nodo -> Panel, generación por nivel y estado de salud textual + indicador visual. Se reutiliza en la carga inicial y en la actualización en vivo. |
+
+Al recibir `ActualizarTelemetria`, el cliente hace `fetch('/Dashboard/Contenido')` y reemplaza el HTML de `#dashboardLive`. No se recarga la página completa.
 
 ## 5) Pruebas
 
-- Tests xUnit del Dominio (obligatorios): solo si se agrega comportamiento nuevo en `Domain`. Si no hay cambios en Domain, no agregar tests.
+- No se agregan tests de Dominio porque este requerimiento no modifica entidades ni reglas de Dominio.
 - No se agregan tests en Application, Infrastructure ni Presentation.
 
 ## 6) Calidad y verificación

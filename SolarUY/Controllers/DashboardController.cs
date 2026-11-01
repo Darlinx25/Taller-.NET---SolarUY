@@ -21,4 +21,11 @@ public class DashboardController : Controller
         var modelo = await _dashboardService.ObtenerDashboardAsync(cancellationToken).ConfigureAwait(false);
         return View(modelo);
     }
+
+    [HttpGet]
+    public async Task<IActionResult> Contenido(CancellationToken cancellationToken)
+    {
+        var modelo = await _dashboardService.ObtenerDashboardAsync(cancellationToken).ConfigureAwait(false);
+        return PartialView("_DashboardContenido", modelo);
+    }
 }

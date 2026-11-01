@@ -59,30 +59,21 @@ public class TareasMantenimientoController : Controller
     {
         if (!ModelState.IsValid)
         {
-            try
-            {
-                var panel = await _panelService.ObtenerPanelAsync(dto.PanelId, cancellationToken);
-                ViewBag.Panel = panel;
-            }
-            catch { }
+            await CargarPanelEnViewBagAsync(dto.PanelId, cancellationToken);
             return View(dto);
         }
 
         try
         {
-            await _tareaMantenimientoService.CrearTareaAsync(dto, cancellationToken);
+            var quienAsigna = User.Identity?.Name ?? "Administrador";
+            await _tareaMantenimientoService.CrearTareaAsync(dto, quienAsigna, cancellationToken);
             TempData["Mensaje"] = "Tarea de mantenimiento creada correctamente.";
             return RedirectToAction(nameof(Index), new { panelId = dto.PanelId });
         }
         catch (Exception ex)
         {
             TempData["Error"] = ex.Message;
-            try
-            {
-                var panel = await _panelService.ObtenerPanelAsync(dto.PanelId, cancellationToken);
-                ViewBag.Panel = panel;
-            }
-            catch { }
+            await CargarPanelEnViewBagAsync(dto.PanelId, cancellationToken);
             return View(dto);
         }
     }
@@ -138,7 +129,7 @@ public class TareasMantenimientoController : Controller
     {
         if (!ModelState.IsValid)
         {
-            try { ViewBag.Tarea = await _tareaMantenimientoService.ObtenerTareaAsync(dto.Id, cancellationToken); } catch { }
+            await CargarTareaEnViewBagAsync(dto.Id, cancellationToken);
             return View(dto);
         }
 
@@ -151,7 +142,7 @@ public class TareasMantenimientoController : Controller
         catch (Exception ex)
         {
             TempData["Error"] = ex.Message;
-            try { ViewBag.Tarea = await _tareaMantenimientoService.ObtenerTareaAsync(dto.Id, cancellationToken); } catch { }
+            await CargarTareaEnViewBagAsync(dto.Id, cancellationToken);
             return View(dto);
         }
     }
@@ -184,12 +175,18 @@ public class TareasMantenimientoController : Controller
     {
         if (!ModelState.IsValid)
         {
-            try { ViewBag.Tarea = await _tareaMantenimientoService.ObtenerTareaAsync(dto.Id, cancellationToken); } catch { }
+            await CargarTareaEnViewBagAsync(dto.Id, cancellationToken);
             return View(dto);
         }
 
         try
         {
+            if (string.Equals(dto.NuevoEstado, "Completada", StringComparison.OrdinalIgnoreCase) &&
+                string.IsNullOrWhiteSpace(dto.QuienCompleta))
+            {
+                dto.QuienCompleta = User.Identity?.Name;
+            }
+
             await _tareaMantenimientoService.CambiarEstadoAsync(dto, cancellationToken);
             TempData["Mensaje"] = "Estado de la tarea actualizado correctamente.";
             return RedirectToAction(nameof(Details), new { id = dto.Id });
@@ -197,7 +194,7 @@ public class TareasMantenimientoController : Controller
         catch (Exception ex)
         {
             TempData["Error"] = ex.Message;
-            try { ViewBag.Tarea = await _tareaMantenimientoService.ObtenerTareaAsync(dto.Id, cancellationToken); } catch { }
+            await CargarTareaEnViewBagAsync(dto.Id, cancellationToken);
             return View(dto);
         }
     }
@@ -232,6 +229,30 @@ public class TareasMantenimientoController : Controller
         {
             TempData["Error"] = ex.Message;
             return RedirectToAction(nameof(Delete), new { id });
+        }
+    }
+
+    private async Task CargarPanelEnViewBagAsync(Guid panelId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            ViewBag.Panel = await _panelService.ObtenerPanelAsync(panelId, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
+    }
+
+    private async Task CargarTareaEnViewBagAsync(Guid tareaId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            ViewBag.Tarea = await _tareaMantenimientoService.ObtenerTareaAsync(tareaId, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = ex.Message;
         }
     }
 }

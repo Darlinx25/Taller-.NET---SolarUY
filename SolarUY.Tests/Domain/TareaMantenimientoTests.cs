@@ -84,6 +84,49 @@ public class TareaMantenimientoTests
     }
 
     [Fact]
+    public void CambiarEstado_PendienteACompletada_LanzaExcepcion()
+    {
+        var tarea = CrearTareaValida();
+        Assert.Throws<TareaMantenimientoEstadoInvalidoException>(() => tarea.CambiarEstado("Completada", "Carlos"));
+    }
+
+    [Fact]
+    public void CambiarEstado_PendienteACancelada_EstableceFechaFinalizacion()
+    {
+        var tarea = CrearTareaValida();
+        tarea.CambiarEstado("Cancelada");
+        Assert.Equal("Cancelada", tarea.Estado);
+        Assert.NotEqual(default(DateTime), tarea.FechaFinalizacion);
+    }
+
+    [Fact]
+    public void CambiarEstado_CompletadaSinQuienCompleta_LanzaExcepcionYNoMutaEstado()
+    {
+        var tarea = CrearTareaValida();
+        tarea.CambiarEstado("EnProceso");
+        Assert.Throws<ArgumentException>(() => tarea.CambiarEstado("Completada"));
+        Assert.Equal("EnProceso", tarea.Estado);
+        Assert.Null(tarea.QuienCompleta);
+    }
+
+    [Fact]
+    public void CrearTareaMantenimiento_ObservacionesExcedidas_LanzaExcepcion()
+    {
+        var observaciones = new string('x', TareaMantenimiento.ObservacionesMaxLength + 1);
+        Assert.Throws<ArgumentException>(() => new TareaMantenimiento(
+            Guid.NewGuid(), "Limpieza", "Desc", "Ana", DateTime.Today.AddDays(1), "Admin", observaciones));
+    }
+
+    [Fact]
+    public void ActualizarDatos_ObservacionesExcedidas_LanzaExcepcion()
+    {
+        var tarea = CrearTareaValida();
+        var observaciones = new string('x', TareaMantenimiento.ObservacionesMaxLength + 1);
+        Assert.Throws<ArgumentException>(() => tarea.ActualizarDatos(
+            "Revision", "Desc", "Luis", DateTime.Today.AddDays(2), observaciones));
+    }
+
+    [Fact]
     public void ActualizarDatos_TareaCompletada_LanzaTareaMantenimientoNoEditableException()
     {
         var tarea = CrearTareaValida();

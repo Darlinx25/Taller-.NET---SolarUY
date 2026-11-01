@@ -4,20 +4,30 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using SolarUY.Application.Dtos;
+using SolarUY.Domain.Entities;
 using SolarUY.Domain.Repositories;
 
 namespace SolarUY.Application.Services;
 
 public class DashboardService : IDashboardService
 {
+    private const string EstadoSinTelemetria = "Sin telemetría";
+    private const string EstadoDesconocido = "Desconocido";
+
     private readonly IParqueSolarRepository _parqueSolarRepository;
+    private readonly INodoRepository _nodoRepository;
+    private readonly IPanelRepository _panelRepository;
     private readonly ITelemetriaService _telemetriaService;
 
     public DashboardService(
         IParqueSolarRepository parqueSolarRepository,
+        INodoRepository nodoRepository,
+        IPanelRepository panelRepository,
         ITelemetriaService telemetriaService)
     {
         _parqueSolarRepository = parqueSolarRepository ?? throw new ArgumentNullException(nameof(parqueSolarRepository));
+        _nodoRepository = nodoRepository ?? throw new ArgumentNullException(nameof(nodoRepository));
+        _panelRepository = panelRepository ?? throw new ArgumentNullException(nameof(panelRepository));
         _telemetriaService = telemetriaService ?? throw new ArgumentNullException(nameof(telemetriaService));
     }
 
@@ -26,82 +36,124 @@ public class DashboardService : IDashboardService
         var parques = await _parqueSolarRepository.ObtenerTodosAsync(cancellationToken).ConfigureAwait(false);
         var lectura = await _telemetriaService.ObtenerUltimaLecturaAsync(cancellationToken).ConfigureAwait(false);
 
-        if (lectura is null || lectura.Parques is null || lectura.Parques.Count == 0)
+        var parquesTelemetria = new Dictionary<Guid, TelemetriaParqueSolarDto>();
+        var nodosTelemetria = new Dictionary<Guid, TelemetriaNodoDto>();
+        var panelesTelemetria = new Dictionary<Guid, TelemetriaPanelDto>();
+
+        if (lectura?.Parques is not null)
         {
-            var vacio = new DashboardTelemetriaViewDto
+            foreach (var parqueTelemetria in lectura.Parques)
             {
-                FechaHora = null,
-                Parques = Array.Empty<DashboardParqueDto>(),
-                TieneDatos = false,
-                MensajeSinDatos = "Sin telemetría disponible"
-            };
+                parquesTelemetria[parqueTelemetria.ParqueSolarId] = parqueTelemetria;
 
-            return vacio;
-        }
+                if (parqueTelemetria.Nodos is null)
+                    continue;
 
-        var parquesPorId = parques.ToDictionary(p => p.Id);
-        var listaParques = new List<DashboardParqueDto>();
-
-        foreach (var parqueTelemetria in lectura.Parques)
-        {
-            parquesPorId.TryGetValue(parqueTelemetria.ParqueSolarId, out var parqueDominio);
-
-            var nodos = new List<DashboardNodoDto>();
-            if (parqueTelemetria.Nodos != null)
-            {
                 foreach (var nodoTelemetria in parqueTelemetria.Nodos)
                 {
-                    var paneles = new List<DashboardPanelDto>();
-                    if (nodoTelemetria.Paneles != null)
-                    {
-                        foreach (var panelTelemetria in nodoTelemetria.Paneles)
-                        {
-                            var estado = string.IsNullOrWhiteSpace(panelTelemetria.Estado) ? "Desconocido" : panelTelemetria.Estado;
-                            var esFallo = string.Equals(estado, "Fallo", StringComparison.OrdinalIgnoreCase)
-                                || string.Equals(estado, "Error", StringComparison.OrdinalIgnoreCase)
-                                || string.Equals(estado, "FALLA", StringComparison.OrdinalIgnoreCase);
+                    nodosTelemetria[nodoTelemetria.NodoId] = nodoTelemetria;
 
-                            paneles.Add(new DashboardPanelDto
-                            {
-                                Id = panelTelemetria.PanelId,
-                                CodigoSerie = panelTelemetria.CodigoSerie,
-                                Marca = string.Empty,
-                                Modelo = string.Empty,
-                                PotenciaWp = 0,
-                                Generacion = panelTelemetria.PotenciaGeneradaW,
-                                EstadoSalud = estado,
-                                EsFallo = esFallo
-                            });
-                        }
+                    if (nodoTelemetria.Paneles is null)
+                        continue;
+
+                    foreach (var panelTelemetria in nodoTelemetria.Paneles)
+                    {
+                        panelesTelemetria[panelTelemetria.PanelId] = panelTelemetria;
                     }
-
-                    nodos.Add(new DashboardNodoDto
-                    {
-                        Id = nodoTelemetria.NodoId,
-                        Codigo = nodoTelemetria.CodigoNodo,
-                        Generacion = nodoTelemetria.PotenciaGeneradaW,
-                        Paneles = paneles
-                    });
                 }
             }
+        }
 
-            var generacionTotal = nodos.Sum(n => n.Generacion);
+        var listaParques = new List<DashboardParqueDto>();
+
+        foreach (var parque in parques)
+        {
+            var nodos = new List<DashboardNodoDto>();
+            var nodosDominio = await _nodoRepository.ObtenerPorParqueAsync(parque.Id, cancellationToken).ConfigureAwait(false);
+
+            foreach (var nodo in nodosDominio)
+            {
+                var panelesDominio = await _panelRepository.ObtenerPorNodoAsync(nodo.Id, cancellationToken).ConfigureAwait(false);
+                var paneles = panelesDominio
+                    .Select(panel => MapearPanel(panel, ObtenerValor(panelesTelemetria, panel.Id)))
+                    .ToList();
+
+                nodosTelemetria.TryGetValue(nodo.Id, out var nodoTelemetria);
+                var generacionNodo = nodoTelemetria?.PotenciaGeneradaW ?? paneles.Sum(panel => panel.Generacion);
+
+                nodos.Add(new DashboardNodoDto
+                {
+                    Id = nodo.Id,
+                    Codigo = nodo.Codigo,
+                    Generacion = generacionNodo,
+                    Paneles = paneles
+                });
+            }
+
+            parquesTelemetria.TryGetValue(parque.Id, out var parqueTelemetria);
+            var generacionParque = parqueTelemetria?.PotenciaGeneradaW ?? nodos.Sum(nodo => nodo.Generacion);
+
             listaParques.Add(new DashboardParqueDto
             {
-                Id = parqueTelemetria.ParqueSolarId,
-                Nombre = parqueDominio?.Nombre ?? parqueTelemetria.NombreParque,
-                Ubicacion = parqueDominio?.Ubicacion ?? string.Empty,
-                GeneracionTotal = generacionTotal,
+                Id = parque.Id,
+                Nombre = parque.Nombre,
+                Ubicacion = parque.Ubicacion,
+                GeneracionTotal = generacionParque,
                 Nodos = nodos
             });
         }
 
         return new DashboardTelemetriaViewDto
         {
-            FechaHora = lectura.FechaHora,
+            FechaHora = lectura?.FechaHora,
             Parques = listaParques,
-            TieneDatos = true,
+            TieneDatos = lectura is not null && lectura.Parques.Count > 0,
             MensajeSinDatos = "Sin telemetría disponible"
         };
+    }
+
+    private static DashboardPanelDto MapearPanel(Panel panel, TelemetriaPanelDto? telemetria)
+    {
+        if (telemetria is null)
+        {
+            return new DashboardPanelDto
+            {
+                Id = panel.Id,
+                CodigoSerie = panel.CodigoSerie,
+                Marca = panel.Marca,
+                Modelo = panel.Modelo,
+                PotenciaWp = panel.PotenciaWp,
+                Generacion = 0,
+                EstadoSalud = EstadoSinTelemetria,
+                EsFallo = false
+            };
+        }
+
+        var estado = string.IsNullOrWhiteSpace(telemetria.Estado) ? EstadoDesconocido : telemetria.Estado;
+
+        return new DashboardPanelDto
+        {
+            Id = panel.Id,
+            CodigoSerie = panel.CodigoSerie,
+            Marca = panel.Marca,
+            Modelo = panel.Modelo,
+            PotenciaWp = panel.PotenciaWp,
+            Generacion = telemetria.PotenciaGeneradaW,
+            EstadoSalud = estado,
+            EsFallo = EsEstadoDeFalla(estado)
+        };
+    }
+
+    private static TValue? ObtenerValor<TValue>(Dictionary<Guid, TValue> valores, Guid id)
+        where TValue : class
+    {
+        return valores.TryGetValue(id, out var valor) ? valor : null;
+    }
+
+    private static bool EsEstadoDeFalla(string estado)
+    {
+        return string.Equals(estado, "Fallo", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(estado, "Error", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(estado, "FALLA", StringComparison.OrdinalIgnoreCase);
     }
 }

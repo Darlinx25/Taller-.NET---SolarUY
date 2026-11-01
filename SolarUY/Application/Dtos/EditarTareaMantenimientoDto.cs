@@ -26,6 +26,7 @@ public class EditarTareaMantenimientoDto
     public string AsignadoA { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "La fecha de vencimiento es obligatoria")]
+    [JsonRequired]
     [Display(Name = "Fecha de vencimiento")]
     [DataType(DataType.Date)]
     public DateTime FechaVencimiento { get; set; }

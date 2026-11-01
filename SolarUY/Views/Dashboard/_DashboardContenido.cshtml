@@ -1,0 +1,82 @@
+@model SolarUY.Application.Dtos.DashboardTelemetriaViewDto
+
+<div class="d-flex justify-content-end mb-2">
+    @if (Model.FechaHora.HasValue)
+    {
+        <span class="text-muted">Última lectura: @Model.FechaHora.Value.ToString("yyyy-MM-dd HH:mm:ss")</span>
+    }
+</div>
+
+<div class="alert alert-warning" style="@(Model.TieneDatos ? "display:none;" : "display:block;")">
+    @Model.MensajeSinDatos
+</div>
+
+@if (Model.Parques.Count == 0)
+{
+    <div class="alert alert-info">No hay parques solares registrados.</div>
+}
+
+@foreach (var parque in Model.Parques)
+{
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between">
+            <div>
+                <strong>@parque.Nombre</strong>
+                @if (!string.IsNullOrEmpty(parque.Ubicacion))
+                {
+                    <span class="text-muted"> - @parque.Ubicacion</span>
+                }
+            </div>
+            <span>Generación total: @parque.GeneracionTotal.ToString("N2")</span>
+        </div>
+        <div class="card-body">
+            @foreach (var nodo in parque.Nodos)
+            {
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <strong>Nodo: @nodo.Codigo</strong>
+                        <span>Generación: @nodo.Generacion.ToString("N2")</span>
+                    </div>
+                    <div class="table-responsive mt-2">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Código Serie</th>
+                                    <th>Marca/Modelo</th>
+                                    <th>Potencia (Wp)</th>
+                                    <th>Generación</th>
+                                    <th>Estado de salud</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var panel in nodo.Paneles)
+                                {
+                                    <tr>
+                                        <td>@panel.CodigoSerie</td>
+                                        <td>@panel.Marca @panel.Modelo</td>
+                                        <td>@panel.PotenciaWp.ToString("N0")</td>
+                                        <td>@panel.Generacion.ToString("N2")</td>
+                                        <td>
+                                            @if (panel.EsFallo)
+                                            {
+                                                <span class="badge bg-danger">@panel.EstadoSalud</span>
+                                            }
+                                            else if (panel.EstadoSalud == "Sin telemetría")
+                                            {
+                                                <span class="badge bg-secondary">@panel.EstadoSalud</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-success">@panel.EstadoSalud</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}

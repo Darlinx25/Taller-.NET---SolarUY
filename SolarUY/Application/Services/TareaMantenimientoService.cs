@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using SolarUY.Application.Dtos;
 using SolarUY.Domain.Entities;
 using SolarUY.Domain.Exceptions;
@@ -16,13 +14,11 @@ public class TareaMantenimientoService : ITareaMantenimientoService
 {
     private readonly ITareaMantenimientoRepository _tareaMantenimientoRepository;
     private readonly IPanelRepository _panelRepository;
-    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public TareaMantenimientoService(ITareaMantenimientoRepository tareaMantenimientoRepository, IPanelRepository panelRepository, IHttpContextAccessor httpContextAccessor)
+    public TareaMantenimientoService(ITareaMantenimientoRepository tareaMantenimientoRepository, IPanelRepository panelRepository)
     {
         _tareaMantenimientoRepository = tareaMantenimientoRepository;
         _panelRepository = panelRepository;
-        _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task<IReadOnlyList<TareaMantenimientoDto>> ObtenerTareasPorPanelAsync(Guid panelId, CancellationToken cancellationToken = default)
@@ -41,13 +37,12 @@ public class TareaMantenimientoService : ITareaMantenimientoService
         return dto;
     }
 
-    public async Task<TareaMantenimientoDto> CrearTareaAsync(CrearTareaMantenimientoDto dto, CancellationToken cancellationToken = default)
+    public async Task<TareaMantenimientoDto> CrearTareaAsync(CrearTareaMantenimientoDto dto, string quienAsigna, CancellationToken cancellationToken = default)
     {
         var panel = await _panelRepository.ObtenerPorIdAsync(dto.PanelId, cancellationToken);
         if (panel is null)
             throw new PanelNoEncontradoException(dto.PanelId);
 
-        var quienAsigna = ObtenerUsuarioActual() ?? "Administrador";
         var tarea = new TareaMantenimiento(
             dto.PanelId,
             dto.TipoTarea,
@@ -92,14 +87,7 @@ public class TareaMantenimientoService : ITareaMantenimientoService
         if (tarea is null)
             throw new TareaMantenimientoNoEncontradaException(dto.Id);
 
-        var usuario = ObtenerUsuarioActual();
-        string? quienCompleta = dto.QuienCompleta;
-        if (string.Equals(dto.NuevoEstado, "Completada", StringComparison.OrdinalIgnoreCase))
-        {
-            quienCompleta = string.IsNullOrWhiteSpace(quienCompleta) ? usuario : quienCompleta;
-        }
-
-        tarea.CambiarEstado(dto.NuevoEstado, quienCompleta);
+        tarea.CambiarEstado(dto.NuevoEstado, dto.QuienCompleta);
         await _tareaMantenimientoRepository.SaveChangesAsync(cancellationToken);
     }
 
@@ -111,13 +99,6 @@ public class TareaMantenimientoService : ITareaMantenimientoService
 
         _tareaMantenimientoRepository.Eliminar(tarea);
         await _tareaMantenimientoRepository.SaveChangesAsync(cancellationToken);
-    }
-
-    private string? ObtenerUsuarioActual()
-    {
-        var user = _httpContextAccessor.HttpContext?.User;
-        if (user?.Identity?.IsAuthenticated != true) return null;
-        return user.Identity?.Name ?? user.FindFirst(ClaimTypes.Name)?.Value ?? user.FindFirst(ClaimTypes.Email)?.Value;
     }
 
     private static TareaMantenimientoDto MapearADto(TareaMantenimiento tarea)
