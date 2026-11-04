@@ -37,6 +37,7 @@ Requerimientos:
 | `req008_dashboard` | Dashboard en vivo con topologia registrada y telemetria por SignalR, sin recarga | Implementado |
 | `req010<Login OIDC>` | Autenticación/autorización externa OpenID Connect con delegación al IdP, sesión por cookies, mapeo de roles y protección de gestión por Administrador | Implementado | ControlCalidad/prompting/req010<Login OIDC> | 2026-11-01 | 2026-11-01 |
 | `req009_alertas` | Alertas por fallos en paneles: registro con historial en MySQL, pantalla `/Alertas` e indicador en vivo por SignalR (acceso sin sesion) | En progreso |
+| `req011_servidor_mcp_consultas` | Servidor MCP de solo lectura embebido en `SolarUY` para consultar parques, topologia, estado actual, historicos, alertas y tareas de mantenimiento desde Antigravity | En progreso |
 
 Estados: **Planificado** (solo artefactos), **En progreso** (implementación
 iniciada) e **Implementado** (cerrado con tests y análisis estático).
@@ -48,6 +49,10 @@ SonarQube (gate en ERROR por cobertura nueva no reportada 0%, duplicación nueva
 5,7% y 8 hallazgos menores en `SolarUY.Simulador`).
 Nota: req006 (mock del inversor) pasa a Implementado con ese mismo análisis de SonarQube,
 que incluye `SolarUY.Simulador`; sus 8 hallazgos menores quedan como deuda aceptada.
+Nota: req011 tiene build y tests en verde y el análisis de SonarQube ejecutado; el gate
+queda en ERROR por deuda preexistente (cobertura nueva 0%, duplicación nueva 5,1% y 10
+hallazgos nuevos en `SolarUY.Simulador`, `RegistroAlertasService` y `alertas-indicador.js`),
+sin hallazgos en el código MCP. Queda pendiente la prueba manual en Antigravity.
 
 Reglas de uso (definidas en `/agents/rules/6_flujo_trabajo_ia.md`):
 

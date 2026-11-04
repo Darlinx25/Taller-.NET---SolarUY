@@ -41,6 +41,13 @@ public class TareaMantenimientoRepository : ITareaMantenimientoRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<TareaMantenimiento>> ObtenerTodasAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.TareasMantenimiento
+            .OrderByDescending(t => t.FechaCreacion)
+            .ToListAsync(cancellationToken);
+    }
+
     public void Eliminar(TareaMantenimiento tarea)
     {
         _context.TareasMantenimiento.Remove(tarea);

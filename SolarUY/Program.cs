@@ -18,6 +18,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllersWithViews();
 
+// Servidor MCP de consultas (solo lectura) para agentes externos como Antigravity.
+builder.Services.AddMcpServer()
+    .WithHttpTransport(options => options.Stateless = true)
+    .WithTools<SolarUY.Controllers.Mcp.SolarUyMcpTools>();
+
 // Capa de Infraestructura: base de datos MySQL 8.4.
 var cadenaConexion = builder.Configuration.GetConnectionString("SolarUYDb");
 if (string.IsNullOrWhiteSpace(cadenaConexion))
@@ -186,6 +191,12 @@ app.MapControllerRoute(
         name: "default",
         pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
+
+// Endpoint MCP de consultas en lenguaje natural (solo lectura, acceso anónimo).
+if (app.Configuration.GetValue("Mcp:Habilitado", true))
+{
+    app.MapMcp(app.Configuration["Mcp:Ruta"] ?? "/mcp");
+}
 
 app.MapGet("/health", async (SolarUYDbContext contexto, CancellationToken cancellationToken) =>
 {

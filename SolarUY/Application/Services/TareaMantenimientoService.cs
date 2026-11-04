@@ -27,6 +27,22 @@ public class TareaMantenimientoService : ITareaMantenimientoService
         return tareas.Select(MapearADto).ToList();
     }
 
+    public async Task<IReadOnlyList<TareaMantenimientoDto>> ObtenerTareasAsync(string? estado, Guid? panelId, CancellationToken cancellationToken = default)
+    {
+        var tareas = panelId.HasValue
+            ? await _tareaMantenimientoRepository.ObtenerPorPanelAsync(panelId.Value, cancellationToken)
+            : await _tareaMantenimientoRepository.ObtenerTodasAsync(cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(estado))
+        {
+            tareas = tareas
+                .Where(tarea => string.Equals(tarea.Estado, estado.Trim(), StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        return tareas.Select(MapearADto).ToList();
+    }
+
     public async Task<TareaMantenimientoDetalleDto> ObtenerTareaAsync(Guid tareaId, CancellationToken cancellationToken = default)
     {
         var tarea = await _tareaMantenimientoRepository.ObtenerPorIdAsync(tareaId, cancellationToken);

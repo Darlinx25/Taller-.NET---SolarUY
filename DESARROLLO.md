@@ -104,7 +104,7 @@ Esto levanta cuatro servicios:
 | --- | --- | --- |
 | `mysql` | MySQL 8.4 con el volumen `mysqldata` | `docker compose ps` -> `healthy` |
 | `migrate` | Aplica las migraciones de EF Core (`dotnet ef database update`) y termina | `docker compose logs migrate` -> `Done.` |
-| `app` | Publica la API web | <http://localhost:5080> |
+| `app` | Publica la API web y el endpoint MCP | <http://localhost:5080> |
 | `simulador` | Mock del inversor: componente independiente que obtiene la topologia de `app` y le envia la telemetria cada 5 s. No accede a MySQL ni publica puertos | `docker compose logs -f simulador` |
 
 Comprobaciones rapidas:
@@ -118,6 +118,7 @@ docker compose logs --tail 30 app
 ### 3.1 Acceso a la aplicacion
 
 - Aplicacion: <http://localhost:5080>
+- MCP (solo lectura): <http://127.0.0.1:5080/mcp>
 - En `Development` hay un **stub de autenticacion**: el enlace *Acceso dev* de la barra superior
   (o <http://localhost:5080/dev/login>) firma un usuario con rol `Administrador`.
   El proveedor real (OpenID Connect) se integra en una iteracion posterior.
@@ -154,6 +155,52 @@ docker run --rm --network solaruy_solaruy   -e SimulacionApi__UrlBase=http://app
 
 (con el servicio `simulador` detenido, para que no pise la lectura). Los endpoints internos exigen el
 encabezado `X-Api-Key`; sin el responden `401`.
+
+### 3.3 Consultas con Antigravity (MCP)
+
+La `app` expone un servidor **MCP** (Model Context Protocol) de solo lectura en
+`http://127.0.0.1:5080/mcp` (req011). Antigravity traduce las preguntas en lenguaje natural a
+llamadas a las herramientas del servidor; la aplicacion no llama a ningun LLM ni necesita una key
+de Gemini.
+
+La configuracion del workspace esta en `.agents/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "solaruy": {
+      "serverUrl": "http://127.0.0.1:5080/mcp"
+    }
+  }
+}
+```
+
+Para usarla, agregala a la configuracion MCP del workspace en Antigravity o copiala a la global
+(`~/.gemini/config/mcp_config.json`). Usar `127.0.0.1` evita problemas de resolucion IPv6 de
+`localhost`.
+
+Herramientas: `listar_parques`, `obtener_topologia`, `obtener_estado_actual`,
+`obtener_historico`, `obtener_alertas` y `listar_tareas_mantenimiento`. Son anonimas y de solo
+lectura; el endpoint se puede apagar con `Mcp:Habilitado=false`.
+
+Para verificar el servidor sin Antigravity se puede usar
+[MCP Inspector](https://github.com/modelcontextprotocol/inspector) apuntando a
+`http://127.0.0.1:5080/mcp`, o `curl` (el transporte es stateless, asi que
+`tools/list` se puede llamar directo). Los ejemplos completos de las 6
+herramientas estan en
+[pruebas-curl.md](ControlCalidad/prompting/req011_servidor_mcp_consultas/pruebas-curl.md):
+
+```bash
+curl -s http://127.0.0.1:5080/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"curl","version":"1.0"}}}'
+
+curl -s http://127.0.0.1:5080/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
+```
 
 ---
 

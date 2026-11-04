@@ -11,6 +11,7 @@ public interface ITareaMantenimientoRepository
     Task AgregarAsync(TareaMantenimiento tarea, CancellationToken cancellationToken = default);
     Task<TareaMantenimiento?> ObtenerPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<TareaMantenimiento>> ObtenerPorPanelAsync(Guid panelId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<TareaMantenimiento>> ObtenerTodasAsync(CancellationToken cancellationToken = default);
     void Eliminar(TareaMantenimiento tarea);
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -68,7 +68,7 @@ services:
       ConnectionStrings__SolarUYDb: "Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-SolarUY};User=${MYSQL_APP_USER:-solaruy};Password=${MYSQL_APP_PASSWORD};"
       SimulacionApi__ApiKey: ${SIMULACION_API_KEY:-SolarUY.Local2026}
     ports:
-      - "${APP_PORT:-5080}:8080"
+      - "127.0.0.1:${APP_PORT:-5080}:8080"
     depends_on:
       mysql:
         condition: service_healthy

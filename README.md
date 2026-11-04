@@ -12,7 +12,7 @@
 - Persistencia: Entity Framework Core / MySQL 8.4
 - Comunicacion en tiempo real: SignalR
 - Autenticacion y Autorizacion: OpenID Connect (Proveedor externo) - stub de desarrollo en iteraciones previas
-- Consultas inteligentes: Servicio de Procesamiento de Lenguaje Natural (NLP)
+- Consultas inteligentes: Servidor MCP de solo lectura que expone el estado del sistema a un agente externo (Antigravity + Gemini)
 - Interfaz de Usuario: HTML5, CSS3, Bootstrap
 - Control de calidad: ArchUnitNET (guardarrailes de arquitectura) + SonarQube (analisis estatico)
 
@@ -29,7 +29,7 @@
 | Monitoreo | Dashboard | Topologia registrada y telemetria de energia en vivo via SignalR, sin recarga | Todos | Listo |
 | Monitoreo | Alertas | Deteccion de fallos en paneles, con historial, pantalla e indicador en vivo | Todos | Listo |
 | Historicos | Reportes | Metricas de energia por dia/mes/ano | Todos | Listo |
-| Historicos | Consulta IA | Estado del sistema en lenguaje natural | Todos | Pendiente |
+| Historicos | Consulta IA | Consulta del estado del sistema en lenguaje natural desde Antigravity via servidor MCP de solo lectura (req011) | Todos | Listo |
 | Simulacion | Mock Inversor | Simulacion de telemetria y sensores ARM | Admin | Listo |
 
 ## Arquitectura
@@ -38,7 +38,7 @@ El proyecto adopta una arquitectura monolitica estructurada en cuatro niveles:
 
 1. Capa de Presentacion: Interfaz web construida con Bootstrap y cliente SignalR para recibir actualizaciones en vivo.
 2. Aplicacion Monolitica: Controladores MVC, endpoints de API, SignalR Hub y logica de negocio en ASP.NET Core.
-3. Servicios Integrados y Simulacion: Integracion con proveedor externo de identidades (OIDC), motor de IA para consultas en lenguaje natural y Mock de Inversores/Sensores ARM. El mock es el componente independiente `simulador` (proyecto `SolarUY.Simulador`, su propio contenedor): obtiene la topologia registrada de la aplicacion y le envia la telemetria por HTTP; no corre dentro del monolito, no comparte codigo con el y no accede a MySQL.
+3. Servicios Integrados y Simulacion: Integracion con proveedor externo de identidades (OIDC), servidor MCP de solo lectura que expone el estado del sistema a un agente externo (Antigravity + Gemini) y Mock de Inversores/Sensores ARM. El mock es el componente independiente `simulador` (proyecto `SolarUY.Simulador`, su propio contenedor): obtiene la topologia registrada de la aplicacion y le envia la telemetria por HTTP; no corre dentro del monolito, no comparte codigo con el y no accede a MySQL.
 4. Capa de Datos: Base de datos MySQL 8.4 gestionada mediante el ORM Entity Framework Core.
 
 Internamente el monolito se organiza en capas (carpetas + namespaces) dentro del proyecto `SolarUY`:
@@ -63,6 +63,7 @@ docker compose logs -f app
 ```
 
 - Aplicacion: <http://localhost:5080>
+- MCP (solo lectura): <http://127.0.0.1:5080/mcp>
 - MySQL: `127.0.0.1:3307` (usuario `solaruy`)
 
 El simulador no requiere configuracion adicional: levanta junto con el resto y usa una API key de desarrollo por defecto (se puede cambiar con `SIMULACION_API_KEY` en el `.env`).
@@ -114,6 +115,32 @@ docker compose stop simulador
 docker run -d --rm --name sim-falla --network solaruy_solaruy -e SimulacionApi__UrlBase=http://app:8080 -e SimulacionApi__ApiKey=SolarUY.Local2026 -e Simulador__IntervaloSegundos=2 -e Simulador__ProbabilidadFalla=1 solaruy-simulador
 docker rm -f sim-falla && docker compose start simulador      # volver a lo normal
 ```
+
+### Consultas con Antigravity (MCP)
+
+La aplicacion expone un servidor **MCP** (Model Context Protocol) de **solo lectura** en
+`http://127.0.0.1:5080/mcp` (req011). Antigravity lo usa como herramienta y traduce las preguntas
+en lenguaje natural a consultas sobre los datos de SolarUY; la aplicacion no llama a ningun LLM ni
+necesita una key de Gemini.
+
+El workspace ya trae la configuracion en [`.agents/mcp_config.json`](.agents/mcp_config.json). Para
+usarla en Antigravity, agregala a la configuracion de MCP del workspace o copiala a la global
+(`~/.gemini/config/mcp_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "solaruy": {
+      "serverUrl": "http://127.0.0.1:5080/mcp"
+    }
+  }
+}
+```
+
+Herramientas disponibles (todas de consulta): `listar_parques`, `obtener_topologia`,
+`obtener_estado_actual`, `obtener_historico`, `obtener_alertas` y `listar_tareas_mantenimiento`.
+El endpoint es anonimo y solo se publica en loopback (`127.0.0.1`); se puede apagar con
+`Mcp:Habilitado=false`.
 
 ## Metodologia de trabajo: SDD + control de calidad
 

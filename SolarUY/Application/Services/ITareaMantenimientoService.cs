@@ -9,6 +9,7 @@ namespace SolarUY.Application.Services;
 public interface ITareaMantenimientoService
 {
     Task<IReadOnlyList<TareaMantenimientoDto>> ObtenerTareasPorPanelAsync(Guid panelId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<TareaMantenimientoDto>> ObtenerTareasAsync(string? estado, Guid? panelId, CancellationToken cancellationToken = default);
     Task<TareaMantenimientoDetalleDto> ObtenerTareaAsync(Guid tareaId, CancellationToken cancellationToken = default);
     Task<TareaMantenimientoDto> CrearTareaAsync(CrearTareaMantenimientoDto dto, string quienAsigna, CancellationToken cancellationToken = default);
     Task<TareaMantenimientoDto> EditarTareaAsync(EditarTareaMantenimientoDto dto, CancellationToken cancellationToken = default);
