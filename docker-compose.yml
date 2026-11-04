@@ -4,7 +4,7 @@ name: solaruy
 # Es lo único que se despliega y escala; el stack de calidad (SonarQube) vive
 # aparte en ControlCalidad/SonarQube/docker-compose.yml.
 #
-#   docker compose up -d        -> mysql + migrate + app + simulador   (http://localhost:5080)
+#   docker compose up -d        -> mysql + migrate + redis + app(replicas) + nginx + simulador   (http://localhost:5080)
 #   docker compose run --rm tools dotnet test
 #
 # Variables: ver .env.example
@@ -28,6 +28,18 @@ services:
       timeout: 5s
       retries: 20
       start_period: 30s
+    networks:
+      - solaruy
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - solaruy
 
@@ -66,14 +78,17 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__SolarUYDb: "Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-SolarUY};User=${MYSQL_APP_USER:-solaruy};Password=${MYSQL_APP_PASSWORD};"
+      ConnectionStrings__Redis: redis:6379
       SimulacionApi__ApiKey: ${SIMULACION_API_KEY:-SolarUY.Local2026}
-    ports:
-      - "127.0.0.1:${APP_PORT:-5080}:8080"
+    deploy:
+      replicas: ${APP_REPLICAS:-2}
     depends_on:
       mysql:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/8080'"]
       interval: 15s
@@ -83,19 +98,31 @@ services:
     networks:
       - solaruy
 
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${APP_PORT:-5080}:80"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - solaruy
+
   # Mock del inversor: componente independiente. No accede a MySQL; obtiene la topología de `app`
-  # y le envía la telemetría por HTTP (ver ControlCalidad/prompting/req006_mock_inversor).
+  # y le envía la telemetría por HTTP al balanceador (req012).
   simulador:
     build:
       context: .
       dockerfile: docker/Dockerfile.simulador
     restart: unless-stopped
     environment:
-      SimulacionApi__UrlBase: http://app:8080
+      SimulacionApi__UrlBase: http://nginx:80
       SimulacionApi__ApiKey: ${SIMULACION_API_KEY:-SolarUY.Local2026}
     depends_on:
-      app:
-        condition: service_healthy
+      nginx:
+        condition: service_started
     networks:
       - solaruy
 

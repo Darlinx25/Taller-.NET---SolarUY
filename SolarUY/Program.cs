@@ -4,7 +4,9 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
 using SolarUY.Application.Seguridad;
 using SolarUY.Application.Services;
 using SolarUY.Domain.Repositories;
@@ -66,8 +68,26 @@ builder.Services.AddScoped<IAlertasService, AlertasService>();
 builder.Services.AddScoped<IAlertasNotifier, SolarUY.Hubs.SignalRAlertasNotifier>();
 
 // Telemetría del mock del inversor: la aplicación recibe, valida y conserva la última lectura que envía
-// el simulador (componente separado). La caché es en memoria; con Redis solo cambia esta línea.
-builder.Services.AddDistributedMemoryCache();
+// el simulador (componente separado). Con múltiples réplicas se usa Redis para estado compartido.
+var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
+if (!string.IsNullOrWhiteSpace(redisConnectionString))
+{
+    var redisMultiplexer = ConnectionMultiplexer.Connect(redisConnectionString);
+    builder.Services.AddSingleton<IConnectionMultiplexer>(redisMultiplexer);
+    builder.Services.AddDataProtection()
+        .PersistKeysToStackExchangeRedis(redisMultiplexer, "SolarUY-DataProtection-Keys")
+        .SetApplicationName("SolarUY");
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redisConnectionString;
+        options.InstanceName = "SolarUY:";
+    });
+}
+else
+{
+    builder.Services.AddDistributedMemoryCache();
+}
+
 builder.Services.Configure<ConfiguracionAlmacenTelemetria>(
     builder.Configuration.GetSection(ConfiguracionAlmacenTelemetria.Seccion));
 builder.Services.Configure<ConfiguracionApiSimulacion>(
@@ -79,7 +99,14 @@ builder.Services.AddScoped<ITelemetriaService, TelemetriaService>();
 builder.Services.AddScoped<ITopologiaSimulacionService, TopologiaSimulacionService>();
 
 // Dashboard de telemetría en vivo
-builder.Services.AddSignalR();
+var signalRBuilder = builder.Services.AddSignalR();
+if (!string.IsNullOrWhiteSpace(redisConnectionString))
+{
+    signalRBuilder.AddStackExchangeRedis(redisConnectionString, options =>
+    {
+        options.Configuration.ChannelPrefix = RedisChannel.Literal("SolarUY");
+    });
+}
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<ITelemetriaNotifier, SolarUY.Hubs.SignalRTelemetriaNotifier>();
 
