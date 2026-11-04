@@ -98,31 +98,48 @@ LOCAL_GID=1000
 docker compose up -d
 ```
 
-Esto levanta cuatro servicios:
+Esto levanta el stack completo:
 
 | Servicio | Que hace | Como verificarlo |
 | --- | --- | --- |
 | `mysql` | MySQL 8.4 con el volumen `mysqldata` | `docker compose ps` -> `healthy` |
 | `migrate` | Aplica las migraciones de EF Core (`dotnet ef database update`) y termina | `docker compose logs migrate` -> `Done.` |
-| `app` | Publica la API web y el endpoint MCP | <http://localhost:5080> |
+| `redis` | Estado compartido: DataProtection, cache y backplane de SignalR | `docker compose ps` -> `healthy` |
+| `keycloak` | IdP OIDC local con el realm `solaruy` importado | <http://localhost:8081> |
+| `app` | Aplicacion ASP.NET Core (por defecto 2 replicas); no publica puertos | `docker compose logs -f app` |
+| `nginx` | Balanceador que publica la aplicacion y los callbacks OIDC | <http://localhost:5080> |
 | `simulador` | Mock del inversor: componente independiente que obtiene la topologia de `app` y le envia la telemetria cada 5 s. No accede a MySQL ni publica puertos | `docker compose logs -f simulador` |
 
 Comprobaciones rapidas:
 
 ```bash
 curl http://localhost:5080/health          # {"estado":"ok","baseDeDatos":"operativa"}
-docker compose ps                           # mysql y app healthy, simulador running
+docker compose ps                           # mysql/redis healthy, app y nginx running
 docker compose logs --tail 30 app
+docker compose logs --tail 30 keycloak
 ```
+
+La primera vez, Keycloak puede tardar unos segundos en importar el realm. Esperá a ver
+`Running the server` en `docker compose logs keycloak` antes de iniciar sesión.
 
 ### 3.1 Acceso a la aplicacion
 
-- Aplicacion: <http://localhost:5080>
+- Aplicacion (via nginx): <http://localhost:5080>
+- Keycloak: <http://localhost:8081> (consola de administracion en `/admin`, usuario `KEYCLOAK_ADMIN` y password `KEYCLOAK_ADMIN_PASSWORD` del `.env`)
 - MCP (solo lectura): <http://127.0.0.1:5080/mcp>
-- En `Development` hay un **stub de autenticacion**: el enlace *Acceso dev* de la barra superior
-  (o <http://localhost:5080/dev/login>) firma un usuario con rol `Administrador`.
-  El proveedor real (OpenID Connect) se integra en una iteracion posterior.
+- Usuarios de desarrollo importados por el realm:
+  - `admin@solaruy.uy` / `SolarUY.Local2026` -> rol `Administrador`
+  - `operador@solaruy.uy` / `SolarUY.Local2026` -> rol `Operador`
 - MySQL: `127.0.0.1:3307`, base `SolarUY`, usuario `solaruy`, password `SolarUY.Local2026`.
+
+Si cambiás `APP_PORT` en el `.env`, actualizá tambien en `docker/keycloak/realm-solaruy.json` la
+redirect URI (`http://localhost:<puerto>/signin-oidc`), el post logout (`http://localhost:<puerto>/*`)
+y `Authentication__Oidc__PostLogoutRedirectUri` en `docker-compose.yml`. Keycloak valida que el
+`redirect_uri` coincida exactamente.
+
+El enlace *Iniciar sesión* de la barra superior redirige a Keycloak. Si no existe configuración
+`Authentication:Oidc` (por ejemplo al ejecutar la app fuera de Docker), el mismo enlace cae en el
+stub de desarrollo `/dev/login`.
 
 ```bash
 docker compose exec mysql mysql -usolaruy -pSolarUY.Local2026 SolarUY
@@ -138,10 +155,12 @@ docker compose logs -f simulador      # lectura generada y envio de cada tick
 docker compose logs -f app            # ingesta de cada lectura
 ```
 
-Para consultar la ultima lectura hay que iniciar sesion como Administrador (stub de desarrollo) y
-hacer `GET /api/telemetria` (`204` antes de la primera lectura, `200` despues; sin sesion, `401`):
+Para consultar la ultima lectura hay que iniciar sesion con rol `Administrador` y hacer
+`GET /api/telemetria` (`204` antes de la primera lectura, `200` despues; sin sesion, `401`):
 
 ```bash
+# En el navegador: http://localhost:5080 -> Iniciar sesión -> admin@solaruy.uy
+# Alternativa de desarrollo (sin pasar por Keycloak):
 curl -c cookies.txt http://localhost:5080/dev/login
 curl -b cookies.txt http://localhost:5080/api/telemetria
 ```
@@ -298,9 +317,14 @@ interna del stack de calidad. Los resultados quedan en <http://localhost:9000/pr
 | --- | --- | --- |
 | `bind: address already in use` en el puerto 3307 | MySQL nativo o otro contenedor en ese puerto | Cambiar `MYSQL_PORT` en `.env` (por ejemplo 3308) |
 | `permission denied` al escribir `bin/` u `obj/` | Los archivos quedaron como `root` | `sudo chown -R $USER:$USER .` y revisar `LOCAL_UID`/`LOCAL_GID` |
+| `Access to the path '/nuget/...' is denied` en `migrate`/`tools` | El cache `.docker-cache` quedó como `root` | `sudo chown -R $USER:$USER .docker-cache` |
+| `Duplicate column name ...` en `migrate` | El volumen MySQL conserva un esquema viejo | `docker compose down -v` (borra datos locales) y volver a levantar |
 | La app no conecta con la base | MySQL no esta listo | `docker compose ps` y esperar a `healthy`; `docker compose logs migrate` |
 | `dotnet` no encontrado | Se ejecuto fuera del contenedor | Usar `docker compose run --rm tools dotnet ...` |
-| El puerto 5080 esta ocupado | Otra app local | Cambiar `APP_PORT` en `.env` |
+| El puerto 5080 esta ocupado | Otra app local o un contenedor viejo | Cambiar `APP_PORT` en `.env`; si el stack actual no muestra el proceso, revisar `docker compose ps -a` |
+| El puerto 5080 sigue ocupado tras `docker compose down` | Quedo un Docker Engine local (systemd) separado de Docker Desktop con contenedores viejos | `sudo systemctl disable --now docker.socket docker` y volver a levantar el stack de Docker Desktop |
+| `502 Bad Gateway` en `/signin-oidc` | nginx no bufferiza las cookies/headers OIDC o conserva la IP vieja de una replica | Reiniciar nginx (`docker compose restart nginx`); la config actual usa `resolver` dinamico y buffers de 32k |
+| `Correlation failed` o `message.State is null` en `/signin-oidc` | La cookie de correlacion no volvio al callback (dominio/puerto distinto o callback reenviado) | Usar siempre el mismo host y puerto (`http://localhost:5080`) y repetir el login desde cero |
 | SonarQube no levanta | Falta memoria (necesita ~2 GB) | `docker stats`; apagar el stack de runtime mientras se analiza |
 
 Para empezar de cero (borra la base y las migraciones aplicadas):

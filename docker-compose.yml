@@ -4,7 +4,7 @@ name: solaruy
 # Es lo único que se despliega y escala; el stack de calidad (SonarQube) vive
 # aparte en ControlCalidad/SonarQube/docker-compose.yml.
 #
-#   docker compose up -d        -> mysql + migrate + redis + app(replicas) + nginx + simulador   (http://localhost:5080)
+#   docker compose up -d        -> mysql + migrate + redis + keycloak + app(replicas) + nginx + simulador   (http://localhost:5080)
 #   docker compose run --rm tools dotnet test
 #
 # Variables: ver .env.example
@@ -40,6 +40,23 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - solaruy
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    restart: unless-stopped
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?definí KEYCLOAK_ADMIN_PASSWORD en .env}
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8081}
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+    ports:
+      - "127.0.0.1:${KEYCLOAK_PORT:-8081}:8080"
+    volumes:
+      - ./docker/keycloak/realm-solaruy.json:/opt/keycloak/data/import/realm-solaruy.json:ro
     networks:
       - solaruy
 
@@ -80,6 +97,15 @@ services:
       ConnectionStrings__SolarUYDb: "Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-SolarUY};User=${MYSQL_APP_USER:-solaruy};Password=${MYSQL_APP_PASSWORD};"
       ConnectionStrings__Redis: redis:6379
       SimulacionApi__ApiKey: ${SIMULACION_API_KEY:-SolarUY.Local2026}
+      Authentication__Oidc__Authority: "http://localhost:${KEYCLOAK_PORT:-8081}/realms/solaruy"
+      Authentication__Oidc__MetadataAddress: "http://keycloak:8080/realms/solaruy/.well-known/openid-configuration"
+      Authentication__Oidc__BackchannelBaseUrl: "http://keycloak:8080"
+      Authentication__Oidc__ClientId: solaruy-app
+      Authentication__Oidc__ClientSecret: ${OIDC_CLIENT_SECRET:-solaruy-app-secret}
+      Authentication__Oidc__CallbackPath: /signin-oidc
+      Authentication__Oidc__SignedOutCallbackPath: /signout-callback-oidc
+      Authentication__Oidc__PostLogoutRedirectUri: "http://localhost:${APP_PORT:-5080}/"
+      Authentication__Oidc__RequireHttpsMetadata: "false"
     deploy:
       replicas: ${APP_REPLICAS:-2}
     depends_on:
@@ -89,6 +115,8 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+      keycloak:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/8080'"]
       interval: 15s

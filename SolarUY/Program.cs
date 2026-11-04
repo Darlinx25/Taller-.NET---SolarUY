@@ -5,13 +5,16 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
 using SolarUY.Application.Seguridad;
 using SolarUY.Application.Services;
 using SolarUY.Domain.Repositories;
 using SolarUY.Infrastructure.Persistence;
 using SolarUY.Infrastructure.Repositories;
+using SolarUY.Infrastructure.Seguridad;
 using SolarUY.Infrastructure.Telemetria;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,6 +22,15 @@ var builder = WebApplication.CreateBuilder(args);
 // Servicios de la capa de Presentación (MVC).
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllersWithViews();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto |
+        ForwardedHeaders.XForwardedHost;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // Servidor MCP de consultas (solo lectura) para agentes externos como Antigravity.
 builder.Services.AddMcpServer()
@@ -112,69 +124,127 @@ builder.Services.AddScoped<ITelemetriaNotifier, SolarUY.Hubs.SignalRTelemetriaNo
 
 // Autenticación externa mediante OpenID Connect + sesión local con cookies.
 // Los endpoints internos del simulador usan el esquema ApiKey, no la cookie.
-var oidcAuthority = builder.Configuration["Authentication:Oidc:Authority"];
-var oidcClientId = builder.Configuration["Authentication:Oidc:ClientId"];
-var oidcConfigurado = !string.IsNullOrWhiteSpace(oidcAuthority) && !string.IsNullOrWhiteSpace(oidcClientId);
+builder.Services.Configure<OpcionesOidc>(
+    builder.Configuration.GetSection(OpcionesOidc.Seccion));
+var opcionesOidc = builder.Configuration
+    .GetSection(OpcionesOidc.Seccion)
+    .Get<OpcionesOidc>() ?? new OpcionesOidc();
+var oidcConfigurado = opcionesOidc.EsConfigurado;
+
+Uri? authorityUri = null;
+Uri? backchannelUri = null;
+if (oidcConfigurado)
+{
+    if (!Uri.TryCreate(opcionesOidc.Authority, UriKind.Absolute, out authorityUri))
+    {
+        throw new InvalidOperationException(
+            "Authentication:Oidc:Authority debe ser una URL absoluta.");
+    }
+
+    if (!string.IsNullOrWhiteSpace(opcionesOidc.BackchannelBaseUrl) &&
+        !Uri.TryCreate(opcionesOidc.BackchannelBaseUrl, UriKind.Absolute, out backchannelUri))
+    {
+        throw new InvalidOperationException(
+            "Authentication:Oidc:BackchannelBaseUrl debe ser una URL absoluta.");
+    }
+
+    if (backchannelUri is not null &&
+        (string.IsNullOrWhiteSpace(opcionesOidc.ClientSecret) ||
+         string.IsNullOrWhiteSpace(opcionesOidc.MetadataAddress)))
+    {
+        throw new InvalidOperationException(
+            "Con Authentication:Oidc:BackchannelBaseUrl configurado se requieren " +
+            "ClientSecret y MetadataAddress.");
+    }
+}
 
 var authBuilder = builder.Services
     .AddAuthentication(options =>
     {
         options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
         options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultForbidScheme = CookieAuthenticationDefaults.AuthenticationScheme;
         options.DefaultChallengeScheme = oidcConfigurado
             ? OpenIdConnectDefaults.AuthenticationScheme
             : CookieAuthenticationDefaults.AuthenticationScheme;
     })
     .AddCookie(options =>
     {
-        options.LoginPath = "/dev/login";
-        options.LogoutPath = "/dev/logout";
+        options.LoginPath = "/login";
+        options.LogoutPath = "/logout";
         options.AccessDeniedPath = "/dev/denegado";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
+
+        if (!builder.Environment.IsDevelopment())
+        {
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        }
     });
 
 if (oidcConfigurado)
 {
-    authBuilder.AddOpenIdConnect("oidc", options =>
+    authBuilder.AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
     {
-        options.Authority = oidcAuthority;
-        options.ClientId = oidcClientId;
-        options.ClientSecret = builder.Configuration["Authentication:Oidc:ClientSecret"];
-        options.CallbackPath = builder.Configuration["Authentication:Oidc:CallbackPath"] ?? "/signin-oidc";
-        options.ResponseType = builder.Configuration["Authentication:Oidc:ResponseType"] ?? "code";
+        options.Authority = opcionesOidc.Authority;
+        options.ClientId = opcionesOidc.ClientId;
+        options.ClientSecret = opcionesOidc.ClientSecret;
+
+        if (!string.IsNullOrWhiteSpace(opcionesOidc.MetadataAddress))
+        {
+            options.MetadataAddress = opcionesOidc.MetadataAddress;
+        }
+
+        options.CallbackPath = string.IsNullOrWhiteSpace(opcionesOidc.CallbackPath)
+            ? "/signin-oidc"
+            : opcionesOidc.CallbackPath;
+        options.SignedOutCallbackPath = string.IsNullOrWhiteSpace(opcionesOidc.SignedOutCallbackPath)
+            ? "/signout-callback-oidc"
+            : opcionesOidc.SignedOutCallbackPath;
+        options.SignedOutRedirectUri = string.IsNullOrWhiteSpace(opcionesOidc.PostLogoutRedirectUri)
+            ? "/"
+            : opcionesOidc.PostLogoutRedirectUri;
+        options.ResponseType = "code";
+        options.UsePkce = true;
         options.SaveTokens = true;
         options.GetClaimsFromUserInfoEndpoint = true;
-        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+        options.RequireHttpsMetadata = opcionesOidc.RequireHttpsMetadata;
 
         options.Scope.Clear();
         options.Scope.Add("openid");
         options.Scope.Add("profile");
         options.Scope.Add("email");
+        options.Scope.Add("roles");
+
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidAudience = opcionesOidc.ClientId,
+            NameClaimType = "preferred_username",
+            RoleClaimType = ClaimTypes.Role
+        };
+
+        if (authorityUri is not null && backchannelUri is not null)
+        {
+            var backchannelHandler = new KeycloakBackchannelHandler(authorityUri, backchannelUri)
+            {
+                InnerHandler = new HttpClientHandler()
+            };
+            options.Backchannel = new HttpClient(backchannelHandler);
+        }
 
         options.Events = new OpenIdConnectEvents
         {
             OnTokenValidated = context =>
             {
-                var claimsIdentity = context.Principal?.Identity as ClaimsIdentity;
-                if (claimsIdentity is null)
+                if (context.Principal?.Identity is ClaimsIdentity identidad)
                 {
-                    return Task.CompletedTask;
-                }
-
-                string[] roleClaims = ["roles", "role", "groups", "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
-                foreach (var claimType in roleClaims)
-                {
-                    if (context.Principal?.HasClaim(c => c.Type == claimType) == true)
-                    {
-                        foreach (var claim in context.Principal.FindAll(claimType))
-                        {
-                            if (!claimsIdentity.HasClaim(ClaimTypes.Role, claim.Value))
-                            {
-                                claimsIdentity.AddClaim(new Claim(ClaimTypes.Role, claim.Value));
-                            }
-                        }
-                    }
+                    MapeadorRolesKeycloak.AgregarRoles(
+                        identidad,
+                        context.Principal.Claims,
+                        opcionesOidc.ClientId);
                 }
 
                 return Task.CompletedTask;
@@ -198,6 +268,8 @@ if (string.IsNullOrWhiteSpace(app.Configuration[$"{ConfiguracionApiSimulacion.Se
 }
 
 // Configurar el pipeline de requests HTTP.
+app.UseForwardedHeaders();
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");

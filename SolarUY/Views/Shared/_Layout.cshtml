@@ -48,13 +48,15 @@
                             <span class="navbar-text text-dark me-3">@User.Identity.Name</span>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="DevAuth" asp-action="Logout">Salir</a>
+                            <form asp-area="" asp-controller="Auth" asp-action="Logout" method="post" class="d-inline">
+                                <button type="submit" class="nav-link btn btn-link text-dark">Salir</button>
+                            </form>
                         </li>
                     }
                     else
                     {
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="DevAuth" asp-action="Login">Acceso dev</a>
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Auth" asp-action="Login">Iniciar sesión</a>
                         </li>
                     }
                 </ul>

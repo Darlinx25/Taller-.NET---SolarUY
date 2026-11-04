@@ -35,7 +35,7 @@ Requerimientos:
 | `req006_mock_inversor` | Mock del inversor: componente independiente `SolarUY.Simulador` que obtiene la topologia, genera la telemetria y la envia a la aplicacion (la lectura es efimera; los historicos son de req007) | Implementado |
 | `req007_historicos_generacion` | Historicos de generacion por parque, nodo y panel | Implementado |
 | `req008_dashboard` | Dashboard en vivo con topologia registrada y telemetria por SignalR, sin recarga | Implementado |
-| `req010<Login OIDC>` | Autenticación/autorización externa OpenID Connect con delegación al IdP, sesión por cookies, mapeo de roles y protección de gestión por Administrador | Implementado | ControlCalidad/prompting/req010<Login OIDC> | 2026-11-01 | 2026-11-01 |
+| `req010_Login_OIDC` | Login OIDC con Keycloak local (Docker Compose), PKCE, RP-initiated logout, mapeo de roles y sesión distribuida sobre req012 | Implementado |
 | `req009_alertas` | Alertas por fallos en paneles: registro con historial en MySQL, pantalla `/Alertas` e indicador en vivo por SignalR (acceso sin sesion) | En progreso |
 | `req011_servidor_mcp_consultas` | Servidor MCP de solo lectura embebido en `SolarUY` para consultar parques, topologia, estado actual, historicos, alertas y tareas de mantenimiento desde Antigravity | En progreso |
 

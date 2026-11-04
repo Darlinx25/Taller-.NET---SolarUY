@@ -1,0 +1,113 @@
+{
+  "realm": "solaruy",
+  "enabled": true,
+  "displayName": "SolarUY",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "roles": {
+    "realm": [
+      {
+        "name": "Administrador",
+        "description": "Acceso completo a la gestión de parques solares."
+      },
+      {
+        "name": "Operador",
+        "description": "Acceso de consulta y operación diaria."
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "solaruy-app",
+      "name": "SolarUY",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "solaruy-app-secret",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:5080/signin-oidc"
+      ],
+      "webOrigins": [
+        "http://localhost:5080"
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:5080/*",
+        "pkce.code.challenge.method": "S256"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access"
+      ],
+      "protocolMappers": [
+        {
+          "name": "roles-planos",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin@solaruy.uy",
+      "email": "admin@solaruy.uy",
+      "firstName": "Administrador",
+      "lastName": "SolarUY",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": [
+        "Administrador"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "SolarUY.Local2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "operador@solaruy.uy",
+      "email": "operador@solaruy.uy",
+      "firstName": "Operador",
+      "lastName": "SolarUY",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": [
+        "Operador"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "SolarUY.Local2026",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

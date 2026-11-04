@@ -11,7 +11,7 @@
 - Framework Web: ASP.NET Core MVC (.NET 10)
 - Persistencia: Entity Framework Core / MySQL 8.4
 - Comunicacion en tiempo real: SignalR
-- Autenticacion y Autorizacion: OpenID Connect (Proveedor externo) - stub de desarrollo en iteraciones previas
+- Autenticacion y Autorizacion: OpenID Connect con Keycloak local (contenedor) y sesion por cookies
 - Consultas inteligentes: Servidor MCP de solo lectura que expone el estado del sistema a un agente externo (Antigravity + Gemini)
 - Interfaz de Usuario: HTML5, CSS3, Bootstrap
 - Control de calidad: ArchUnitNET (guardarrailes de arquitectura) + SonarQube (analisis estatico)
@@ -20,8 +20,8 @@
 
 | Modulo | Funcionalidad | Descripcion | Rol | Estado |
 | --- | --- | --- | --- | --- |
-| Seguridad | Login OIDC | Autenticacion externa OpenID Connect (delegación al IdP, cookies, mapeo de roles, `[Authorize(Roles="Administrador")]`) - req010 | Publico | Implementado |
-| Seguridad | Permisos | Control de roles (Admin / Operador) | Sistema | En curso (stub de desarrollo activo) |
+| Seguridad | Login OIDC | Autenticacion externa OpenID Connect con Keycloak local (Docker Compose), PKCE, RP-initiated logout, mapeo de roles y sesión distribuida (req010 + req012) | Publico | Implementado |
+| Seguridad | Permisos | Control de roles (Administrador / Operador) mapeados desde Keycloak | Sistema | Listo |
 | Parques | Parques | Gestion CRUD de parques solares | Admin | Listo |
 | Parques | Nodos | Configuracion de nodos e inversores | Admin | Listo |
 | Parques | Paneles | Registro de paneles fotovoltaicos | Admin | Listo |
@@ -58,11 +58,13 @@ Todo el stack corre en contenedores: no hace falta instalar el SDK de .NET ni My
 
 ```bash
 cp .env.example .env          # credenciales locales (MySQL 8.4 en el puerto 3307)
-docker compose up -d           # MySQL + migraciones + aplicación + simulador (mock del inversor)
+docker compose up -d           # MySQL + migraciones + Redis + Keycloak + app (réplicas) + nginx + simulador
 docker compose logs -f app
 ```
 
-- Aplicacion: <http://localhost:5080>
+- Aplicacion (via nginx): <http://localhost:5080>
+- Keycloak (IdP local): <http://localhost:8081> (consola en `/admin`)
+- Usuarios de desarrollo: `admin@solaruy.uy` (Administrador) y `operador@solaruy.uy` (Operador), password `SolarUY.Local2026`
 - MCP (solo lectura): <http://127.0.0.1:5080/mcp>
 - MySQL: `127.0.0.1:3307` (usuario `solaruy`)
 
@@ -89,13 +91,13 @@ memoria (se pierde al reiniciar) y la expone al Administrador; los resumenes dia
 
 ```bash
 docker compose logs -f simulador                  # lectura generada y envio de cada tick
-curl -c cookies.txt http://localhost:5080/dev/login   # sesion de desarrollo (rol Administrador)
+# Flujo real: abrir http://localhost:5080, "Iniciar sesión" y entrar con admin@solaruy.uy
+# Alternativa de desarrollo (sin pasar por Keycloak): curl -c cookies.txt http://localhost:5080/dev/login
 curl -b cookies.txt http://localhost:5080/api/telemetria   # 204 antes de la primera lectura, 200 despues
 ```
 
-La generacion sigue una curva solar (0 W fuera de 07:00-19:00, hora de Uruguay). Un balanceador de carga con
-replicas de la aplicacion y Redis para compartir la ultima lectura es una evolucion prevista que no se incorpora
-todavia; el detalle esta en `ControlCalidad/prompting/req006_mock_inversor/specs.md`.
+La generacion sigue una curva solar (0 W fuera de 07:00-19:00, hora de Uruguay). El balanceador nginx con
+replicas de la aplicacion y Redis para compartir la ultima lectura ya esta incorporado (req012).
 
 ### Alertas de paneles
 
