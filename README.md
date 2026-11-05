@@ -20,7 +20,7 @@
 
 | Modulo | Funcionalidad | Descripcion | Rol | Estado |
 | --- | --- | --- | --- | --- |
-| Seguridad | Login OIDC | Autenticacion externa OpenID Connect con Keycloak local (Docker Compose), PKCE, RP-initiated logout, mapeo de roles y sesión distribuida (req010 + req012) | Publico | Implementado |
+| Seguridad | Login OIDC | Autenticacion externa OpenID Connect con Keycloak local, PKCE, RP-initiated logout, mapeo de roles y sesión distribuida | Publico | Listo |
 | Seguridad | Permisos | Control de roles (Administrador / Operador) mapeados desde Keycloak | Sistema | Listo |
 | Parques | Parques | Gestion CRUD de parques solares | Admin | Listo |
 | Parques | Nodos | Configuracion de nodos e inversores | Admin | Listo |
