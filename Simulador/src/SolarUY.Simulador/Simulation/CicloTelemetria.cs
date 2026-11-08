@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SolarUY.Simulador.Contracts;
@@ -8,20 +7,20 @@ namespace SolarUY.Simulador.Simulation;
 
 /// <summary>
 /// Ejecuta el ciclo del simulador: un tick inmediato y luego uno por intervalo. Cada tick genera la lectura
-/// y la envía a la aplicación con reintentos. Ningún fallo detiene el proceso.
+/// y la envía a la aplicación con reintentos. Ningún fallo detiene el ciclo.
 /// </summary>
-public class SimuladorTelemetriaHostedService : BackgroundService
+public class CicloTelemetria
 {
     private readonly SimuladorInversor _simulador;
     private readonly ClienteTelemetria _clienteTelemetria;
     private readonly ConfiguracionSimulador _configuracion;
-    private readonly ILogger<SimuladorTelemetriaHostedService> _logger;
+    private readonly ILogger<CicloTelemetria> _logger;
 
-    public SimuladorTelemetriaHostedService(
+    public CicloTelemetria(
         SimuladorInversor simulador,
         ClienteTelemetria clienteTelemetria,
         IOptions<ConfiguracionSimulador> configuracion,
-        ILogger<SimuladorTelemetriaHostedService> logger)
+        ILogger<CicloTelemetria> logger)
     {
         _simulador = simulador ?? throw new ArgumentNullException(nameof(simulador));
         _clienteTelemetria = clienteTelemetria ?? throw new ArgumentNullException(nameof(clienteTelemetria));
@@ -30,7 +29,10 @@ public class SimuladorTelemetriaHostedService : BackgroundService
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    /// <summary>
+    /// Ejecuta ticks hasta que se cancele el token. La cancelación termina el ciclo sin lanzar.
+    /// </summary>
+    public async Task EjecutarAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation(
             "Simulador iniciado: un tick cada {IntervaloSegundos} s.",
@@ -38,18 +40,22 @@ public class SimuladorTelemetriaHostedService : BackgroundService
 
         try
         {
-            await EjecutarTickSeguroAsync(stoppingToken).ConfigureAwait(false);
+            await EjecutarTickSeguroAsync(cancellationToken).ConfigureAwait(false);
 
-            using var temporizador = new PeriodicTimer(TimeSpan.FromSeconds(_configuracion.IntervaloSegundos));
-            while (await temporizador.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false))
+            // Task.Delay y no PeriodicTimer: en WebAssembly (un solo hilo) es la espera con soporte probado.
+            var intervalo = TimeSpan.FromSeconds(_configuracion.IntervaloSegundos);
+            while (!cancellationToken.IsCancellationRequested)
             {
-                await EjecutarTickSeguroAsync(stoppingToken).ConfigureAwait(false);
+                await Task.Delay(intervalo, cancellationToken).ConfigureAwait(false);
+                await EjecutarTickSeguroAsync(cancellationToken).ConfigureAwait(false);
             }
         }
-        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            _logger.LogInformation("Simulador detenido.");
+            // La cancelación es el modo normal de detener el ciclo.
         }
+
+        _logger.LogInformation("Simulador detenido.");
     }
 
     private async Task EjecutarTickSeguroAsync(CancellationToken cancellationToken)

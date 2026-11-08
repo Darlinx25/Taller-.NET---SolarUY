@@ -22,7 +22,6 @@ public class PanelSimulado
         CodigoSerie = codigoNormalizado;
         PotenciaWp = potenciaWp;
         Estado = EstadoPanelSimulado.Operativo;
-        TicksRestantesFalla = 0;
     }
 
     public Guid PanelId { get; }
@@ -35,35 +34,45 @@ public class PanelSimulado
 
     public EstadoPanelSimulado Estado { get; private set; }
 
-    public int TicksRestantesFalla { get; private set; }
-
     /// <summary>
-    /// Avanza un tick: un panel en falla descuenta un tick y se recupera al llegar a 0;
-    /// un panel operativo falla si <paramref name="valorAleatorio"/> es menor que la probabilidad.
+    /// Avanza un tick con un único valor aleatorio: un panel en falla se recupera si
+    /// <paramref name="valorAleatorio"/> es menor que <paramref name="probabilidadRecuperacion"/>;
+    /// un panel operativo falla si es menor que <paramref name="probabilidadFalla"/>.
     /// Las dos ramas son excluyentes: un panel que se recupera no vuelve a fallar en el mismo tick.
     /// </summary>
-    public void ActualizarEstado(decimal probabilidadFalla, int duracionFallaTicks, decimal valorAleatorio)
+    public void ActualizarEstado(decimal probabilidadFalla, decimal probabilidadRecuperacion, decimal valorAleatorio)
     {
         if (probabilidadFalla is < 0m or > 1m)
             throw new ArgumentOutOfRangeException(nameof(probabilidadFalla), "La probabilidad de falla debe estar entre 0 y 1.");
 
-        if (duracionFallaTicks <= 0)
-            throw new ArgumentOutOfRangeException(nameof(duracionFallaTicks), "La duración de la falla debe ser mayor a 0.");
+        if (probabilidadRecuperacion is < 0m or > 1m)
+            throw new ArgumentOutOfRangeException(
+                nameof(probabilidadRecuperacion),
+                "La probabilidad de recuperación debe estar entre 0 y 1.");
 
         if (valorAleatorio is < 0m or > 1m)
             throw new ArgumentOutOfRangeException(nameof(valorAleatorio), "El valor aleatorio debe estar entre 0 y 1.");
 
         if (Estado == EstadoPanelSimulado.EnFalla)
         {
-            Recuperarse();
+            if (valorAleatorio < probabilidadRecuperacion)
+                Estado = EstadoPanelSimulado.Operativo;
+
             return;
         }
 
         if (valorAleatorio < probabilidadFalla)
-        {
             Estado = EstadoPanelSimulado.EnFalla;
-            TicksRestantesFalla = duracionFallaTicks;
-        }
+    }
+
+    /// <summary>
+    /// Fuerza una falla: el panel queda <see cref="EstadoPanelSimulado.EnFalla"/>. Se invoca después de
+    /// <see cref="ActualizarEstado"/> en el tick en que se pide la falla; desde el tick siguiente rige la
+    /// misma recuperación probabilística que para una falla aleatoria.
+    /// </summary>
+    public void ForzarFalla()
+    {
+        Estado = EstadoPanelSimulado.EnFalla;
     }
 
     public LecturaPanelSimulado GenerarLectura(DateTime horaLocal, decimal variacion, DateTime fechaHoraUtc)
@@ -71,16 +80,5 @@ public class PanelSimulado
         var potencia = GeneradorGeneracionSolar.CalcularPotenciaGenerada(PotenciaWp, horaLocal, variacion, Estado);
 
         return new LecturaPanelSimulado(PanelId, CodigoSerie, potencia, Estado, fechaHoraUtc);
-    }
-
-    private void Recuperarse()
-    {
-        TicksRestantesFalla--;
-
-        if (TicksRestantesFalla <= 0)
-        {
-            TicksRestantesFalla = 0;
-            Estado = EstadoPanelSimulado.Operativo;
-        }
     }
 }

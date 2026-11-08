@@ -32,7 +32,7 @@ Requerimientos:
 | `req003_nodos_inversores` | Nodos e inversores por parque solar (Administrador) | Implementado |
 | `req004_gestion_paneles` | Paneles fotovoltaicos por nodo (Administrador) | Implementado |
 | `req005_registro_seguimiento_tareas_mantenimiento` | Registro y seguimiento de tareas de mantenimiento por panel (Administrador) | Implementado |
-| `req006_mock_inversor` | Mock del inversor: componente independiente `SolarUY.Simulador` que obtiene la topologia, genera la telemetria y la envia a la aplicacion (la lectura es efimera; los historicos son de req007) | Implementado |
+| `req006_mock_inversor` | Mock del inversor: componente independiente (carpeta `Simulador/`) que simula una placa ARM compilada a WebAssembly (Node.js), obtiene la topologia, genera la telemetria y la envia al balanceador (la lectura es efimera; los historicos son de req007). Revision 1: pasa de worker .NET a WebAssembly. Revision 2: botones del dashboard para forzar el dia y simular fallas | Implementado |
 | `req007_historicos_generacion` | Historicos de generacion por parque, nodo y panel | Implementado |
 | `req008_dashboard` | Dashboard en vivo con topologia registrada y telemetria por SignalR, sin recarga | Implementado |
 | `req010_Login_OIDC` | Login OIDC con Keycloak local (Docker Compose), PKCE, RP-initiated logout, mapeo de roles y sesión distribuida sobre req012 | Implementado |
@@ -108,15 +108,16 @@ pruebas unitarias.
 docker compose run --rm tools dotnet test SolarUY.Tests
 ```
 
-### D. Pruebas del simulador (`/SolarUY.Simulador.Tests`)
+### D. Pruebas del simulador (`/Simulador/tests/SolarUY.Simulador.Tests`)
 
-El mock del inversor (`SolarUY.Simulador`) es un componente independiente del monolito, con su propio
+El mock del inversor (carpeta `Simulador/`) es un componente independiente del monolito, con su propio
 Dominio (curva solar, fallas y energia). Sus pruebas viven en un proyecto xUnit aparte
 (aprobado en `prompting/req006_mock_inversor/specs.md`, apartado "Justificacion de excepciones"): cubren
-la logica pura (Dominio, orquestador y mapper); no se prueban los clientes HTTP ni el arranque.
+la logica pura (Dominio, orquestador y mapper); no se prueban los clientes HTTP, el ciclo ni el arranque
+WebAssembly.
 
 ```bash
-docker compose run --rm tools dotnet test SolarUY.Simulador.Tests
+docker compose run --rm tools dotnet test Simulador/tests/SolarUY.Simulador.Tests
 ```
 
 ---
@@ -155,5 +156,5 @@ El token se configura en el `.env` de la raíz (`SONAR_TOKEN=...`) y **nunca** s
 | --- | --- | --- | --- |
 | Guardarraíles ArchUnitNET | `ValidacionDeCodigo/CodeQuality.Tests` | En cada cambio de código | `docker compose run --rm tools dotnet test SolarUY.sln` |
 | Tests xUnit del dominio | `SolarUY.Tests` | En cada cambio de código | `docker compose run --rm tools dotnet test SolarUY.Tests` |
-| Tests xUnit del simulador | `SolarUY.Simulador.Tests` | En cada cambio del simulador | `docker compose run --rm tools dotnet test SolarUY.Simulador.Tests` |
+| Tests xUnit del simulador | `Simulador/tests/SolarUY.Simulador.Tests` | En cada cambio del simulador | `docker compose run --rm tools dotnet test Simulador/tests/SolarUY.Simulador.Tests` |
 | SonarQube | `SonarQube/` | Antes de cada entrega / cierre de iteración | `./ControlCalidad/SonarQube/analizar.sh` |

@@ -26,7 +26,7 @@ public class SimuladorInversorTests
         {
             IntervaloSegundos = 5,
             ProbabilidadFalla = probabilidadFalla,
-            DuracionFallaTicks = 6,
+            ProbabilidadRecuperacion = 0.4m,
             VariacionMaxima = 0m,
             DesfaseHorarioUruguayHoras = -3
         });
@@ -250,6 +250,216 @@ public class SimuladorInversorTests
             Assert.Single(primera!).EnergiaAcumuladaKWh,
             Assert.Single(ultima!).EnergiaAcumuladaKWh,
             10);
+    }
+
+    // 06:00 UTC = 03:00 en Uruguay: fuera de la ventana solar.
+    private static readonly DateTimeOffset Madrugada = new(2026, 11, 5, 6, 0, 0, TimeSpan.Zero);
+
+    private readonly ProveedorControlFalso _control = new();
+
+    private SimuladorInversor CrearSimuladorConControl(decimal probabilidadFalla = 0m, decimal probabilidadRecuperacion = 0.4m)
+    {
+        var configuracion = Options.Create(new ConfiguracionSimulador
+        {
+            IntervaloSegundos = 5,
+            ProbabilidadFalla = probabilidadFalla,
+            ProbabilidadRecuperacion = probabilidadRecuperacion,
+            VariacionMaxima = 0m,
+            DesfaseHorarioUruguayHoras = -3
+        });
+
+        return new SimuladorInversor(
+            _proveedor,
+            configuracion,
+            new RelojFijo(Madrugada),
+            NullLogger<SimuladorInversor>.Instance,
+            _control);
+    }
+
+    private static ControlSimulacionDto Control(bool simulacionForzada = false, long secuenciaFalla = 0) =>
+        new() { SimulacionForzada = simulacionForzada, SecuenciaFalla = secuenciaFalla };
+
+    [Fact]
+    public async Task GenerarLectura_SinSimulacionForzadaDeNoche_InformaCeroWatts()
+    {
+        _proveedor.Topologia = Topologia(NodoActivoConDosPaneles());
+        _control.Control = Control();
+
+        var lecturas = await CrearSimuladorConControl().GenerarLecturaAsync(CancellationToken.None);
+
+        Assert.Equal(0m, Assert.Single(lecturas!).PotenciaGeneradaW);
+    }
+
+    [Fact]
+    public async Task GenerarLectura_ConSimulacionForzadaDeNoche_GeneraComoAlPicoSinSuperarLaPotenciaRegistrada()
+    {
+        _proveedor.Topologia = Topologia(NodoActivoConDosPaneles());
+        _control.Control = Control(simulacionForzada: true);
+
+        var lecturas = await CrearSimuladorConControl().GenerarLecturaAsync(CancellationToken.None);
+
+        var parque = Assert.Single(lecturas!);
+        Assert.Equal(700m, parque.PotenciaGeneradaW);
+        Assert.All(Assert.Single(parque.Nodos).Paneles, panel => Assert.True(panel.EstaOperativo));
+    }
+
+    [Fact]
+    public async Task GenerarLectura_ConDiaForzadoYProbabilidadDeFallaUno_LosPanelesFallanAleatoriamente()
+    {
+        _proveedor.Topologia = Topologia(NodoActivoConDosPaneles());
+        _control.Control = Control(simulacionForzada: true);
+
+        var lecturas = await CrearSimuladorConControl(probabilidadFalla: 1m).GenerarLecturaAsync(CancellationToken.None);
+
+        var parque = Assert.Single(lecturas!);
+        Assert.All(Assert.Single(parque.Nodos).Paneles, panel =>
+        {
+            Assert.Equal(EstadoPanelSimulado.EnFalla, panel.Estado);
+            Assert.Equal(0m, panel.PotenciaGeneradaW);
+        });
+        Assert.Equal(0m, parque.PotenciaGeneradaW);
+    }
+
+    [Fact]
+    public async Task GenerarLectura_ConDiaForzadoYProbabilidadDeFallaCero_NingunPanelFalla()
+    {
+        _proveedor.Topologia = Topologia(NodoActivoConDosPaneles());
+        _control.Control = Control(simulacionForzada: true);
+        var simulador = CrearSimuladorConControl(probabilidadFalla: 0m);
+
+        for (var tick = 0; tick < 20; tick++)
+        {
+            var lecturas = await simulador.GenerarLecturaAsync(CancellationToken.None);
+            Assert.All(Assert.Single(Assert.Single(lecturas!).Nodos).Paneles, panel => Assert.True(panel.EstaOperativo));
+        }
+    }
+
+    [Fact]
+    public async Task GenerarLectura_ConSimulacionForzadaYInversorChico_RespetaElLimiteDelInversor()
+    {
+        _proveedor.Topologia = Topologia(NodoActivoConDosPaneles(potenciaNominalKW: 0.5m));
+        _control.Control = Control(simulacionForzada: true);
+
+        var lecturas = await CrearSimuladorConControl().GenerarLecturaAsync(CancellationToken.None);
+
+        Assert.Equal(500m, Assert.Single(lecturas!).PotenciaGeneradaW);
+    }
+
+    [Fact]
+    public async Task GenerarLectura_AlDesactivarLaSimulacionForzada_VuelveALaHoraReal()
+    {
+        _proveedor.Topologia = Topologia(NodoActivoConDosPaneles());
+        var simulador = CrearSimuladorConControl();
+
+        _control.Control = Control(simulacionForzada: true);
+        var forzada = await simulador.GenerarLecturaAsync(CancellationToken.None);
+
+        _control.Control = Control(simulacionForzada: false);
+        var real = await simulador.GenerarLecturaAsync(CancellationToken.None);
+
+        Assert.Equal(700m, Assert.Single(forzada!).PotenciaGeneradaW);
+        Assert.Equal(0m, Assert.Single(real!).PotenciaGeneradaW);
+    }
+
+    [Fact]
+    public async Task GenerarLectura_ConControlNoDisponible_ConservaElModoAnterior()
+    {
+        _proveedor.Topologia = Topologia(NodoActivoConDosPaneles());
+        var simulador = CrearSimuladorConControl();
+
+        _control.Control = Control(simulacionForzada: true);
+        await simulador.GenerarLecturaAsync(CancellationToken.None);
+
+        _control.Control = null;
+        var lecturas = await simulador.GenerarLecturaAsync(CancellationToken.None);
+
+        Assert.Equal(700m, Assert.Single(lecturas!).PotenciaGeneradaW);
+    }
+
+    [Fact]
+    public async Task GenerarLectura_PrimeraRespuestaConSecuenciaDeFalla_EsLineaBaseYNoFalla()
+    {
+        _proveedor.Topologia = Topologia(NodoActivoConDosPaneles());
+        _control.Control = Control(simulacionForzada: true, secuenciaFalla: 5);
+
+        var lecturas = await CrearSimuladorConControl().GenerarLecturaAsync(CancellationToken.None);
+
+        var nodo = Assert.Single(Assert.Single(lecturas!).Nodos);
+        Assert.All(nodo.Paneles, panel => Assert.True(panel.EstaOperativo));
+    }
+
+    [Fact]
+    public async Task GenerarLectura_ConSecuenciaDeFallaMayor_FallaTodosLosPanelesActivosConCeroWatts()
+    {
+        _proveedor.Topologia = Topologia(
+            NodoActivoConDosPaneles(),
+            Nodo(NodoInactivoId, "EnMantenimiento", null, Panel(PanelCId, "PAN-C", 500m)));
+        var simulador = CrearSimuladorConControl();
+
+        _control.Control = Control(simulacionForzada: true, secuenciaFalla: 5);
+        await simulador.GenerarLecturaAsync(CancellationToken.None);
+
+        _control.Control = Control(simulacionForzada: true, secuenciaFalla: 6);
+        var lecturas = await simulador.GenerarLecturaAsync(CancellationToken.None);
+
+        var parque = Assert.Single(lecturas!);
+        var nodo = Assert.Single(parque.Nodos);
+        Assert.Equal(2, nodo.Paneles.Count);
+        Assert.All(nodo.Paneles, panel =>
+        {
+            Assert.Equal(EstadoPanelSimulado.EnFalla, panel.Estado);
+            Assert.Equal(0m, panel.PotenciaGeneradaW);
+        });
+        Assert.Equal(0m, parque.PotenciaGeneradaW);
+    }
+
+    [Fact]
+    public async Task GenerarLectura_ConLaMismaSecuenciaDeFalla_NoVuelveAFallarLosPaneles()
+    {
+        _proveedor.Topologia = Topologia(NodoActivoConDosPaneles());
+        // Recuperación segura: tras la lectura de la falla forzada, el panel se recupera y no vuelve a fallar
+        // mientras la secuencia no cambie (la probabilidad de falla aleatoria es 0).
+        var simulador = CrearSimuladorConControl(probabilidadRecuperacion: 1m);
+
+        _control.Control = Control(simulacionForzada: true, secuenciaFalla: 5);
+        await simulador.GenerarLecturaAsync(CancellationToken.None);
+
+        _control.Control = Control(simulacionForzada: true, secuenciaFalla: 6);
+        var primera = await simulador.GenerarLecturaAsync(CancellationToken.None);
+        var segunda = await simulador.GenerarLecturaAsync(CancellationToken.None);
+        var tercera = await simulador.GenerarLecturaAsync(CancellationToken.None);
+
+        Assert.All(Assert.Single(Assert.Single(primera!).Nodos).Paneles, p => Assert.False(p.EstaOperativo));
+        Assert.All(Assert.Single(Assert.Single(segunda!).Nodos).Paneles, p => Assert.True(p.EstaOperativo));
+        Assert.All(Assert.Single(Assert.Single(tercera!).Nodos).Paneles, p => Assert.True(p.EstaOperativo));
+    }
+
+    [Fact]
+    public async Task GenerarLectura_ConTopologiaNoDisponible_NoConsumeLaFallaPendiente()
+    {
+        var simulador = CrearSimuladorConControl();
+        _proveedor.Topologia = Topologia(NodoActivoConDosPaneles());
+        _control.Control = Control(simulacionForzada: true, secuenciaFalla: 5);
+        await simulador.GenerarLecturaAsync(CancellationToken.None);
+
+        _proveedor.Topologia = null;
+        _control.Control = Control(simulacionForzada: true, secuenciaFalla: 6);
+        var omitida = await simulador.GenerarLecturaAsync(CancellationToken.None);
+
+        _proveedor.Topologia = Topologia(NodoActivoConDosPaneles());
+        var lecturas = await simulador.GenerarLecturaAsync(CancellationToken.None);
+
+        Assert.Null(omitida);
+        var nodo = Assert.Single(Assert.Single(lecturas!).Nodos);
+        Assert.All(nodo.Paneles, panel => Assert.False(panel.EstaOperativo));
+    }
+
+    private sealed class ProveedorControlFalso : IProveedorControl
+    {
+        public ControlSimulacionDto? Control { get; set; }
+
+        public Task<ControlSimulacionDto?> ObtenerAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(Control);
     }
 
     private sealed class ProveedorTopologiaFalso : IProveedorTopologia

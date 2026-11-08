@@ -19,13 +19,17 @@ public class DashboardService : IDashboardService
     private readonly INodoRepository _nodoRepository;
     private readonly IPanelRepository _panelRepository;
     private readonly ITelemetriaService _telemetriaService;
+    private readonly IControlSimulacionService _controlSimulacionService;
 
     public DashboardService(
         IParqueSolarRepository parqueSolarRepository,
         INodoRepository nodoRepository,
         IPanelRepository panelRepository,
-        ITelemetriaService telemetriaService)
+        ITelemetriaService telemetriaService,
+        IControlSimulacionService controlSimulacionService)
     {
+        _controlSimulacionService = controlSimulacionService
+            ?? throw new ArgumentNullException(nameof(controlSimulacionService));
         _parqueSolarRepository = parqueSolarRepository ?? throw new ArgumentNullException(nameof(parqueSolarRepository));
         _nodoRepository = nodoRepository ?? throw new ArgumentNullException(nameof(nodoRepository));
         _panelRepository = panelRepository ?? throw new ArgumentNullException(nameof(panelRepository));
@@ -36,6 +40,7 @@ public class DashboardService : IDashboardService
     {
         var parques = await _parqueSolarRepository.ObtenerTodosAsync(cancellationToken).ConfigureAwait(false);
         var lectura = await _telemetriaService.ObtenerUltimaLecturaAsync(cancellationToken).ConfigureAwait(false);
+        var control = await _controlSimulacionService.ObtenerAsync(cancellationToken).ConfigureAwait(false);
 
         var parquesTelemetria = new Dictionary<Guid, TelemetriaParqueSolarDto>();
         var nodosTelemetria = new Dictionary<Guid, TelemetriaNodoDto>();
@@ -109,6 +114,7 @@ public class DashboardService : IDashboardService
             FechaHora = lectura?.FechaHora,
             Parques = listaParques,
             TieneDatos = lectura is not null && lectura.Parques.Count > 0,
+            SimulacionForzadaActiva = control.SimulacionForzada,
             MensajeSinDatos = "Sin telemetría disponible"
         };
     }

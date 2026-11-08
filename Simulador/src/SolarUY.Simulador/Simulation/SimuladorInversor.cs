@@ -14,6 +14,7 @@ public class SimuladorInversor
     private const string EstadoNodoActivo = "Activo";
 
     private readonly IProveedorTopologia _proveedorTopologia;
+    private readonly IProveedorControl? _proveedorControl;
     private readonly ConfiguracionSimulador _configuracion;
     private readonly TimeProvider _tiempo;
     private readonly ILogger<SimuladorInversor> _logger;
@@ -21,17 +22,25 @@ public class SimuladorInversor
     private readonly Dictionary<Guid, PanelSimulado> _panelesPorId = new();
     private readonly Dictionary<Guid, decimal> _energiaAcumuladaPorNodo = new();
 
+    // Orden vigente: modo forzado y última secuencia de falla procesada (null hasta la primera respuesta,
+    // que es la línea base y no dispara ninguna falla).
+    private bool _simulacionForzada;
+    private long? _secuenciaFallaProcesada;
+    private int _panelesConFallaForzada;
+
     public SimuladorInversor(
         IProveedorTopologia proveedorTopologia,
         IOptions<ConfiguracionSimulador> configuracion,
         TimeProvider tiempo,
-        ILogger<SimuladorInversor> logger)
+        ILogger<SimuladorInversor> logger,
+        IProveedorControl? proveedorControl = null)
     {
         _proveedorTopologia = proveedorTopologia ?? throw new ArgumentNullException(nameof(proveedorTopologia));
         ArgumentNullException.ThrowIfNull(configuracion);
         _configuracion = configuracion.Value;
         _tiempo = tiempo ?? throw new ArgumentNullException(nameof(tiempo));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _proveedorControl = proveedorControl;
     }
 
     /// <summary>
@@ -48,9 +57,14 @@ public class SimuladorInversor
         if (topologia is null)
             return null;
 
+        var forzarFalla = await ActualizarControlAsync(cancellationToken).ConfigureAwait(false);
+
         var fechaHoraUtc = _tiempo.GetUtcNow().UtcDateTime;
-        var horaLocal = fechaHoraUtc.AddHours(_configuracion.DesfaseHorarioUruguayHoras);
+        var horaLocal = _simulacionForzada
+            ? fechaHoraUtc.Date.AddHours(GeneradorGeneracionSolar.HoraPicoGeneracion)
+            : fechaHoraUtc.AddHours(_configuracion.DesfaseHorarioUruguayHoras);
         var intervalo = TimeSpan.FromSeconds(_configuracion.IntervaloSegundos);
+        _panelesConFallaForzada = 0;
 
         var nodosEnTopologia = new HashSet<Guid>();
         var panelesActivos = new HashSet<Guid>();
@@ -69,7 +83,8 @@ public class SimuladorInversor
                     continue;
                 }
 
-                lecturasNodo.Add(GenerarLecturaNodo(nodo, horaLocal, fechaHoraUtc, intervalo, panelesActivos));
+                lecturasNodo.Add(GenerarLecturaNodo(
+                    nodo, horaLocal, fechaHoraUtc, intervalo, forzarFalla, panelesActivos));
             }
 
             lecturas.Add(LecturaParqueSolarSimulado.Crear(
@@ -81,7 +96,46 @@ public class SimuladorInversor
 
         DescartarEstadoObsoleto(nodosEnTopologia, panelesActivos);
 
+        if (forzarFalla)
+            _logger.LogInformation("Falla forzada aplicada a {Paneles} panel(es).", _panelesConFallaForzada);
+
         return lecturas;
+    }
+
+    /// <summary>
+    /// Consulta la orden vigente y actualiza el modo. Devuelve <c>true</c> si hay una falla nueva para aplicar
+    /// en este tick. Si la orden no está disponible se conserva la última conocida.
+    /// </summary>
+    private async Task<bool> ActualizarControlAsync(CancellationToken cancellationToken)
+    {
+        if (_proveedorControl is null)
+            return false;
+
+        var control = await _proveedorControl.ObtenerAsync(cancellationToken).ConfigureAwait(false);
+        if (control is null)
+            return false;
+
+        if (control.SimulacionForzada != _simulacionForzada)
+        {
+            _simulacionForzada = control.SimulacionForzada;
+            _logger.LogInformation(
+                _simulacionForzada
+                    ? "Día forzado activado: se genera como a las {Hora}:00 sin importar la hora real."
+                    : "Día forzado desactivado: se vuelve a la hora real.",
+                GeneradorGeneracionSolar.HoraPicoGeneracion);
+        }
+
+        if (_secuenciaFallaProcesada is null)
+        {
+            _secuenciaFallaProcesada = control.SecuenciaFalla;
+            return false;
+        }
+
+        if (control.SecuenciaFalla <= _secuenciaFallaProcesada)
+            return false;
+
+        _secuenciaFallaProcesada = control.SecuenciaFalla;
+        return true;
     }
 
     private static bool EstaActivo(NodoSimulacionDto nodo)
@@ -94,6 +148,7 @@ public class SimuladorInversor
         DateTime horaLocal,
         DateTime fechaHoraUtc,
         TimeSpan intervalo,
+        bool forzarFalla,
         HashSet<Guid> panelesActivos)
     {
         var lecturasPanel = new List<LecturaPanelSimulado>(nodo.Paneles.Count);
@@ -104,8 +159,14 @@ public class SimuladorInversor
 
             panel.ActualizarEstado(
                 _configuracion.ProbabilidadFalla,
-                _configuracion.DuracionFallaTicks,
+                _configuracion.ProbabilidadRecuperacion,
                 (decimal)Random.Shared.NextDouble());
+
+            if (forzarFalla)
+            {
+                panel.ForzarFalla();
+                _panelesConFallaForzada++;
+            }
 
             lecturasPanel.Add(panel.GenerarLectura(horaLocal, GenerarVariacion(), fechaHoraUtc));
         }

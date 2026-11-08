@@ -38,7 +38,7 @@ El proyecto adopta una arquitectura monolitica estructurada en cuatro niveles:
 
 1. Capa de Presentacion: Interfaz web construida con Bootstrap y cliente SignalR para recibir actualizaciones en vivo.
 2. Aplicacion Monolitica: Controladores MVC, endpoints de API, SignalR Hub y logica de negocio en ASP.NET Core.
-3. Servicios Integrados y Simulacion: Integracion con proveedor externo de identidades (OIDC), servidor MCP de solo lectura que expone el estado del sistema a un agente externo (Antigravity + Gemini) y Mock de Inversores/Sensores ARM. El mock es el componente independiente `simulador` (proyecto `SolarUY.Simulador`, su propio contenedor): obtiene la topologia registrada de la aplicacion y le envia la telemetria por HTTP; no corre dentro del monolito, no comparte codigo con el y no accede a MySQL.
+3. Servicios Integrados y Simulacion: Integracion con proveedor externo de identidades (OIDC), servidor MCP de solo lectura que expone el estado del sistema a un agente externo (Antigravity + Gemini) y Mock de Inversores/Sensores ARM. El mock es el componente independiente `simulador` (carpeta [`Simulador/`](Simulador/README.md), su propio contenedor): una placa ARM simulada compilada a WebAssembly y ejecutada con Node.js que obtiene la topologia registrada y envia la telemetria por HTTP al balanceador de carga; se levanta con el stack, no corre dentro del monolito, no comparte codigo con el y no accede a MySQL.
 4. Capa de Datos: Base de datos MySQL 8.4 gestionada mediante el ORM Entity Framework Core.
 
 Internamente el monolito se organiza en capas (carpetas + namespaces) dentro del proyecto `SolarUY`:

@@ -20,13 +20,23 @@ public class SimulacionController : ControllerBase
 {
     private readonly ITopologiaSimulacionService _topologiaSimulacionService;
     private readonly ITelemetriaService _telemetriaService;
+    private readonly IControlSimulacionService _controlSimulacionService;
 
     public SimulacionController(
         ITopologiaSimulacionService topologiaSimulacionService,
-        ITelemetriaService telemetriaService)
+        ITelemetriaService telemetriaService,
+        IControlSimulacionService controlSimulacionService)
     {
         _topologiaSimulacionService = topologiaSimulacionService ?? throw new ArgumentNullException(nameof(topologiaSimulacionService));
         _telemetriaService = telemetriaService ?? throw new ArgumentNullException(nameof(telemetriaService));
+        _controlSimulacionService = controlSimulacionService ?? throw new ArgumentNullException(nameof(controlSimulacionService));
+    }
+
+    [HttpGet("control")]
+    public async Task<IActionResult> ObtenerControl(CancellationToken cancellationToken)
+    {
+        var control = await _controlSimulacionService.ObtenerAsync(cancellationToken);
+        return Ok(control);
     }
 
     [HttpGet("topologia")]

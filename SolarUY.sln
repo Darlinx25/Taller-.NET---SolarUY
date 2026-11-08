@@ -10,9 +10,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeQuality.Tests", "Contro
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SolarUY.Tests", "SolarUY.Tests\SolarUY.Tests.csproj", "{6F0543CE-1416-428F-B5BE-EA3B781B3772}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SolarUY.Simulador", "SolarUY.Simulador\SolarUY.Simulador.csproj", "{81728980-9C27-4006-A1D3-CB59071A7C59}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SolarUY.Simulador", "Simulador\src\SolarUY.Simulador\SolarUY.Simulador.csproj", "{81728980-9C27-4006-A1D3-CB59071A7C59}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SolarUY.Simulador.Tests", "SolarUY.Simulador.Tests\SolarUY.Simulador.Tests.csproj", "{0D1F909C-4D33-4C4E-BD53-45B97BECEB6C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SolarUY.Simulador.Tests", "Simulador\tests\SolarUY.Simulador.Tests\SolarUY.Simulador.Tests.csproj", "{0D1F909C-4D33-4C4E-BD53-45B97BECEB6C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

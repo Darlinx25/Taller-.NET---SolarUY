@@ -108,7 +108,7 @@ Esto levanta el stack completo:
 | `keycloak` | IdP OIDC local con el realm `solaruy` importado | <http://localhost:8081> |
 | `app` | Aplicacion ASP.NET Core (por defecto 2 replicas); no publica puertos | `docker compose logs -f app` |
 | `nginx` | Balanceador que publica la aplicacion y los callbacks OIDC | <http://localhost:5080> |
-| `simulador` | Mock del inversor: componente independiente que obtiene la topologia de `app` y le envia la telemetria cada 5 s. No accede a MySQL ni publica puertos | `docker compose logs -f simulador` |
+| `simulador` | Mock de la placa ARM (inversor y sensores) compilado a WebAssembly y ejecutado con Node.js; obtiene la topologia y envia la telemetria cada 5 s al balanceador (`nginx`). No accede a MySQL ni publica puertos. Su codigo esta en [`Simulador/`](Simulador/README.md) | `docker compose logs -f simulador` |
 
 Comprobaciones rapidas:
 
@@ -147,8 +147,10 @@ docker compose exec mysql mysql -usolaruy -pSolarUY.Local2026 SolarUY
 
 ### 3.2 Verificar el mock del inversor
 
-El `simulador` genera una lectura cada 5 segundos para cada parque registrado y la envia a la `app`
-(`POST /api/simulacion/telemetria`), que conserva la ultima en memoria (los resumenes diarios para los historicos se persisten aparte).
+El `simulador` (placa ARM simulada en WebAssembly, ver [`Simulador/README.md`](Simulador/README.md)) genera una
+lectura cada 5 segundos para cada parque registrado y la envia al balanceador (`POST /api/simulacion/telemetria`),
+que la entrega a una replica de la `app`. La `app` conserva la ultima en la cache compartida (los resumenes diarios
+para los historicos se persisten aparte). Se levanta solo con `docker compose up`; no hace falta abrir ninguna pagina.
 
 ```bash
 docker compose logs -f simulador      # lectura generada y envio de cada tick
@@ -165,11 +167,16 @@ curl -c cookies.txt http://localhost:5080/dev/login
 curl -b cookies.txt http://localhost:5080/api/telemetria
 ```
 
-La generacion es 0 W fuera de 07:00-19:00 (hora de Uruguay). Para ver potencia fuera de ese horario
-se puede levantar un simulador efimero con otro desfase horario, por ejemplo:
+La generacion es 0 W fuera de 07:00-19:00 (hora de Uruguay). Para ver potencia en cualquier momento, el
+administrador puede usar los botones del dashboard (<http://localhost:5080/Dashboard>): **Forzar dia**
+(genera como a las 13:00 sin importar la hora, con fallas aleatorias igual) y **Simular falla** (todos los paneles fallan y se
+recuperan solos al azar, con 40 % por lectura). El efecto se ve en la lectura siguiente (hasta 5 s) y la pagina se actualiza sola. Mas detalle en
+[`Simulador/README.md`](Simulador/README.md).
+
+Alternativamente, se puede levantar un simulador efimero con otro desfase horario, por ejemplo:
 
 ```bash
-docker run --rm --network solaruy_solaruy   -e SimulacionApi__UrlBase=http://app:8080 -e SimulacionApi__ApiKey=SolarUY.Local2026   -e Simulador__DesfaseHorarioUruguayHoras=-9 solaruy-simulador
+docker run --rm --network solaruy_solaruy   -e SimulacionApi__UrlBase=http://nginx:80 -e SimulacionApi__ApiKey=SolarUY.Local2026   -e Simulador__DesfaseHorarioUruguayHoras=-9 solaruy-simulador
 ```
 
 (con el servicio `simulador` detenido, para que no pise la lectura). Los endpoints internos exigen el

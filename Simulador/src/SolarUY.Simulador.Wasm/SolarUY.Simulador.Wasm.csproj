@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <WasmMainJSPath>main.mjs</WasmMainJSPath>
+    <!-- Usa el runtime de .NET ya compilado a WebAssembly: no hace falta Emscripten ni Python. -->
+    <WasmBuildNative>false</WasmBuildNative>
+    <WasmEmitSymbolMap>false</WasmEmitSymbolMap>
+    <!-- El recorte de código puede quitar miembros de los DTOs que la serialización JSON usa por reflexión. -->
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SolarUY.Simulador\SolarUY.Simulador.csproj" />
+  </ItemGroup>
+
+</Project>

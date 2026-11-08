@@ -11,5 +11,10 @@ public class DashboardTelemetriaViewDto
 
     public bool TieneDatos { get; set; }
 
+    /// <summary>
+    /// Indica que el administrador inició la simulación forzada (el simulador genera como a pleno sol).
+    /// </summary>
+    public bool SimulacionForzadaActiva { get; set; }
+
     public string MensajeSinDatos { get; set; } = "Sin telemetría disponible";
 }

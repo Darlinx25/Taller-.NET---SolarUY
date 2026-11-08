@@ -6,6 +6,30 @@
     };
 }
 
+@{
+    var puedeControlar = User.IsInRole("Administrador");
+}
+
+@if (Model.SimulacionForzadaActiva || puedeControlar)
+{
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        @if (Model.SimulacionForzadaActiva)
+        {
+            <span class="badge text-bg-warning" id="indicadorSimulacionForzada">Día forzado activo</span>
+        }
+        @if (puedeControlar)
+        {
+            <button type="button"
+                    class="btn btn-sm @(Model.SimulacionForzadaActiva ? "btn-outline-secondary" : "btn-success")"
+                    data-accion="simulacion"
+                    data-activa="@(Model.SimulacionForzadaActiva ? "false" : "true")">
+                @(Model.SimulacionForzadaActiva ? "Volver a hora real" : "Forzar día")
+            </button>
+            <button type="button" class="btn btn-sm btn-danger" data-accion="falla">Simular falla</button>
+        }
+    </div>
+}
+
 <div class="row g-3 mb-3">
     <div class="col-md-6 col-xl-3">
         <div class="app-stat-card">

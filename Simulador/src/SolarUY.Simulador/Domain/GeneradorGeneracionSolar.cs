@@ -10,6 +10,11 @@ public static class GeneradorGeneracionSolar
 
     public const int HoraFinGeneracion = 19;
 
+    /// <summary>
+    /// Hora de pico de la curva (mitad de la ventana). La simulación forzada genera como si fuera esta hora.
+    /// </summary>
+    public const int HoraPicoGeneracion = 13;
+
     private const int DuracionVentanaHoras = HoraFinGeneracion - HoraInicioGeneracion;
 
     /// <summary>

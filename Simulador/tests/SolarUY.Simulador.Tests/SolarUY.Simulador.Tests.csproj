@@ -19,7 +19,7 @@
 
   <!-- Referencia al simulador para probar su lógica pura (Dominio, orquestador y mapper). -->
   <ItemGroup>
-    <ProjectReference Include="..\SolarUY.Simulador\SolarUY.Simulador.csproj" />
+    <ProjectReference Include="..\..\src\SolarUY.Simulador\SolarUY.Simulador.csproj" />
   </ItemGroup>
 
 </Project>

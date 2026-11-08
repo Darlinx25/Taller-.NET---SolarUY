@@ -30,8 +30,14 @@
         return;
     }
 
+    // Con varias réplicas detrás del balanceador (sin sesión pegajosa) la negociación y el WebSocket pueden caer
+    // en réplicas distintas y la conexión falla. Conectar directo por WebSocket evita la negociación; los eventos
+    // entre réplicas viajan por el backplane de Redis.
     const conexion = new signalR.HubConnectionBuilder()
-        .withUrl('/hubs/telemetria')
+        .withUrl('/hubs/telemetria', {
+            skipNegotiation: true,
+            transport: signalR.HttpTransportType.WebSockets
+        })
         .withAutomaticReconnect()
         .build();
 

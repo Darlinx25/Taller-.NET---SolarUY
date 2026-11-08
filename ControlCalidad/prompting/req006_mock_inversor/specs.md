@@ -1100,3 +1100,403 @@ Esta iteración no implementa el balanceador (requerimiento no funcional de alta
 - Cambios en OpenID Connect o en el stub de autenticación.
 - Cambios en el alta y edición de parques, nodos, inversores o paneles.
 - Un usuario de MySQL dedicado y con permisos solo de lectura para el simulador; el simulador no accede a la base de datos.
+
+---
+
+# Revisión 1: placa ARM simulada en WebAssembly
+
+> Estado: **Propuesta, pendiente de aprobación (Gate S).** Todo lo anterior en este documento describe la primera versión (worker .NET) y se conserva como registro. Esta sección es la especificación del cambio definido en la Revisión 1 de `requirements.md`; donde contradice a lo anterior, rige esta revisión.
+
+## R.1 Objetivo
+
+Reemplazar el proceso .NET del mock por un mock que simula una placa ARM (inversor y sensores) y **corre como WebAssembly dentro de su contenedor**, sin navegador, levantado junto con el stack. La lógica de simulación (Dominio, orquestador, mapper, clientes HTTP) no cambia de comportamiento; cambia **cómo se empaqueta y se ejecuta**: el código .NET se compila a WebAssembly (`browser-wasm`) y lo ejecuta Node.js. El mock habla solo con el balanceador (`http://nginx:80`) usando el mismo contrato de los dos endpoints internos.
+
+Además, **todo lo relacionado con el mock pasa a vivir en una única carpeta, `Simulador/`**: código, tests, Dockerfile y README.
+
+## R.2 Decisiones y supuestos
+
+- **WebAssembly sin navegador.** Se usa una aplicación de consola .NET compilada a `browser-wasm` (la plantilla `wasmconsole`), ejecutada con Node.js 22. No se usa Blazor ni ninguna interfaz web.
+- **Una carpeta para todo el mock.** Estructura final:
+
+  ```text
+  Simulador/
+  ├── README.md                          # qué es, cómo se ejecuta y cómo se prueba el mock
+  ├── Dockerfile                         # antes docker/Dockerfile.simulador
+  ├── src/
+  │   ├── SolarUY.Simulador/             # biblioteca: Domain, Contracts, Simulation, Transport
+  │   └── SolarUY.Simulador.Wasm/        # consola WebAssembly: Program.cs, main.mjs, .csproj
+  └── tests/
+      └── SolarUY.Simulador.Tests/       # tests xUnit de la lógica (sin cambios de contenido)
+  ```
+
+  - `SolarUY.Simulador` (hoy en la raíz del repositorio) se mueve a `Simulador/src/SolarUY.Simulador/` y pasa de proyecto Worker a **biblioteca de clases** `net10.0`. Conserva los namespaces.
+  - `SolarUY.Simulador.Tests` (hoy en la raíz) se mueve a `Simulador/tests/SolarUY.Simulador.Tests/`. Solo cambia la ruta de su `ProjectReference`.
+  - `SolarUY.Simulador.Wasm` es el único proyecto nuevo. Contiene solo el arranque (`Program.cs`, `main.mjs`) y referencia a la biblioteca; no tiene lógica de simulación.
+  - Los movimientos se hacen con `git mv` para conservar el historial.
+- **Por qué dos proyectos y no uno.** Un proyecto compilado a WebAssembly no se puede referenciar de forma segura desde el proyecto de tests, que corre en .NET normal. Con la lógica en una biblioteca, los tests siguen funcionando y el proyecto WebAssembly queda mínimo.
+- **`SolarUY.Simulador.Wasm` no se agrega a `SolarUY.sln`.** Compilarlo exige la carga de trabajo `wasm-tools`, que la imagen `tools` no tiene, y agregarlo rompería `dotnet build SolarUY.sln`. Se construye únicamente en `Simulador/Dockerfile`. La biblioteca y los tests siguen en la solución, por lo que build, tests y SonarQube siguen cubriendo toda la lógica.
+- **Sin host genérico.** `Microsoft.Extensions.Hosting`, `BackgroundService`, `AddHttpClient` y `SocketsHttpHandler` no se usan: no aplican en `browser-wasm`. `Program.cs` arma las dependencias a mano.
+- **Configuración solo por variables de entorno** (sin `appsettings.json`, que en WebAssembly habría que incrustar). Los valores por defecto ya viven en `ConfiguracionSimulador` y `ConfiguracionSimulacionApi`; las variables `Simulador__*` y `SimulacionApi__*` los sobrescriben, con los mismos nombres de hoy.
+- **El contrato, la URL y la API key no cambian.** `docker-compose.yml` ya apunta el simulador al balanceador (`SimulacionApi__UrlBase: http://nginx:80`) y ya le pasa `SimulacionApi__ApiKey`.
+- **La aplicación, nginx y MySQL no se modifican.** No hay migraciones.
+- **Riesgo técnico a resolver en la primera tarea (spike):** la ruta exacta de salida de `dotnet publish` para la consola WebAssembly en .NET 10, la paridad de `HttpClient` sobre `fetch` de Node y el paso de variables de entorno a .NET (`main.mjs`). El diseño de abajo es el que se espera; si el spike mostrara una diferencia, se corrige esta spec antes de seguir.
+
+## R.3 Arquitectura de componentes
+
+```mermaid
+flowchart LR
+    subgraph STACK["Stack Docker (docker compose)"]
+        LB["nginx<br/>balanceador"]
+        APP["app (réplicas)"]
+        subgraph SIM["simulador: placa ARM simulada"]
+            NODE["Node.js 22"] --> WASM["SolarUY.Simulador.Wasm + SolarUY.Simulador<br/>(.NET compilado a WebAssembly)"]
+        end
+        WASM -->|"GET topología / POST telemetría<br/>X-Api-Key"| LB
+        LB --> APP
+    end
+```
+
+Flujo de un tick: igual al de la primera versión (topología → lectura de Dominio → mapper → `POST` con reintentos), ahora ejecutado como WebAssembly. El mock no conoce las réplicas: solo la URL del balanceador.
+
+## R.4 Cambios por capa
+
+### 1) Dominio, Aplicación e Infraestructura del monolito
+
+**Sin cambios.** No se modifican entidades, servicios, controladores, nginx ni la base de datos.
+
+### 2) Biblioteca `Simulador/src/SolarUY.Simulador`
+
+#### `SolarUY.Simulador.csproj`
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.0" />
+  </ItemGroup>
+</Project>
+```
+
+- Se eliminan `Microsoft.Extensions.Hosting` y `Microsoft.Extensions.Http`.
+- `Program.cs` y `appsettings.json` se eliminan de esta biblioteca (el arranque pasa a `SolarUY.Simulador.Wasm`).
+
+#### `SimuladorTelemetriaHostedService` → `CicloTelemetria`
+
+Ubicación: `Simulador/src/SolarUY.Simulador/Simulation/CicloTelemetria.cs` (reemplaza a `SimuladorTelemetriaHostedService.cs`).
+
+- Clase normal, sin `BackgroundService`. Mismas dependencias y misma lógica de tick (`EjecutarTickSeguroAsync`, `EjecutarTickAsync`, `RegistrarLecturaGenerada`, `EnviarConReintentosAsync`): no cambian los mensajes de log ni las reglas de reintento.
+- Método público `Task EjecutarAsync(CancellationToken cancellationToken)`:
+  1. registra `Simulador iniciado: un tick cada {IntervaloSegundos} s.`;
+  2. ejecuta un primer tick inmediato;
+  3. repite: espera `IntervaloSegundos` con `Task.Delay` y ejecuta el tick, hasta que se cancele el token;
+  4. al cancelarse, registra `Simulador detenido.` y termina sin lanzar.
+- Se usa `Task.Delay` y no `PeriodicTimer`: WebAssembly corre en un solo hilo y `Task.Delay` es la opción con soporte probado.
+- Un fallo del tick no detiene el ciclo (igual que hoy).
+
+#### `ConfiguracionSimulador` y `ConfiguracionSimulacionApi`
+
+- Se les agrega el método `IReadOnlyList<string> Validar()` que devuelve los mismos mensajes de error que hoy están en los `.Validate(...)` de `Program.cs` (`"Simulador:IntervaloSegundos debe ser mayor a 0."`, etc.). Reglas y mensajes sin cambios.
+- `ConfiguracionSimulacionApi.Validar()` exige URL absoluta HTTP/HTTPS, `ApiKey` no vacía y `TimeoutSegundos > 0`.
+
+#### Resto de la biblioteca
+
+- `ClienteTopologia` y `ClienteTelemetria` **no cambian**: reciben un `HttpClient`, `IOptions<ConfiguracionSimulacionApi>` y `ILogger`. En WebAssembly ese `HttpClient` usa `fetch` de Node.js de forma transparente.
+- `RespuestaHttp`, `TelemetriaMapper`, `SimuladorInversor`, `IProveedorTopologia`, el Dominio y los Contratos **no cambian**.
+
+### 3) Proyecto `Simulador/src/SolarUY.Simulador.Wasm` (consola WebAssembly)
+
+```text
+SolarUY.Simulador.Wasm/
+├── SolarUY.Simulador.Wasm.csproj
+├── Program.cs
+└── main.mjs
+```
+
+#### `SolarUY.Simulador.Wasm.csproj`
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <WasmMainJSPath>main.mjs</WasmMainJSPath>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SolarUY.Simulador\SolarUY.Simulador.csproj" />
+  </ItemGroup>
+</Project>
+```
+
+- No referencia al monolito, ni a EF Core ni a MySQL. No tiene cadena de conexión.
+- Las propiedades `Wasm*` se ajustan al resultado del spike si .NET 10 exige otras.
+
+#### `Program.cs`
+
+Responsabilidades (única pieza que conoce todas las carpetas):
+
+1. Lee la configuración con `ConfigurationBuilder().AddEnvironmentVariables()` y enlaza `Simulador` y `SimulacionApi` a sus clases de configuración.
+2. Llama a `Validar()` de cada configuración; si hay errores, escribe cada mensaje en el log y termina con código de salida distinto de 0 (el contenedor se reinicia con `restart: unless-stopped`).
+3. Crea `ILoggerFactory` con consola (`AddSimpleConsole`, hora UTC) y los dos `HttpClient` (`BaseAddress = UrlBase` terminada en `/`, `Timeout = TimeoutSegundos`), sin `IHttpClientFactory`.
+4. Arma `ClienteTopologia`, `SimuladorInversor` (con `TimeProvider.System`), `ClienteTelemetria` y `CicloTelemetria`.
+5. Registra el cierre ordenado (`Console.CancelKeyPress` / señal de terminación) y ejecuta `await ciclo.EjecutarAsync(token)`.
+
+- No levanta servidor, no publica puertos y no escribe en MySQL.
+- La API key no se escribe en los logs.
+
+#### `main.mjs`
+
+- Arranca el runtime .NET en Node.js, pasa **todas las variables de entorno del proceso** al runtime (`withEnvironmentVariables(process.env)`) para que `SimulacionApi__*` y `Simulador__*` lleguen a `Program.cs`, y ejecuta el punto de entrada.
+- Convierte `SIGTERM` y `SIGINT` en la cancelación del ciclo para que `docker compose stop` cierre limpio.
+- Termina el proceso con el código de salida que devuelve .NET.
+
+### 4) Docker y configuración
+
+#### `Simulador/Dockerfile`
+
+El contexto de build es la carpeta `Simulador/`, por lo que el build no ve el resto del repositorio.
+
+```dockerfile
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+
+RUN dotnet workload install wasm-tools
+
+WORKDIR /src
+COPY src/SolarUY.Simulador/SolarUY.Simulador.csproj src/SolarUY.Simulador/
+COPY src/SolarUY.Simulador.Wasm/SolarUY.Simulador.Wasm.csproj src/SolarUY.Simulador.Wasm/
+RUN dotnet restore src/SolarUY.Simulador.Wasm/SolarUY.Simulador.Wasm.csproj
+COPY src/ src/
+RUN dotnet publish src/SolarUY.Simulador.Wasm/SolarUY.Simulador.Wasm.csproj -c Release --no-restore
+
+FROM node:22-alpine
+
+WORKDIR /app
+COPY --from=build /src/src/SolarUY.Simulador.Wasm/bin/Release/net10.0/browser-wasm/AppBundle/ .
+
+USER node
+
+CMD ["node", "main.mjs"]
+```
+
+- La imagen final contiene solo Node.js y el paquete WebAssembly: ni el SDK de .NET ni el código del monolito.
+- La ruta de `AppBundle` se confirma en el spike.
+- El simulador no expone puertos.
+- Se agrega `Simulador/.dockerignore` con `**/bin` y `**/obj`.
+- Se elimina `docker/Dockerfile.simulador`.
+
+#### `docker-compose.yml`
+
+- El servicio `simulador` cambia solo su `build`: `context: ./Simulador` y `dockerfile: Dockerfile`. Las variables, `depends_on: nginx` y la red no cambian: sigue levantándose con `docker compose up` y enviando al balanceador.
+- Se actualiza el comentario del servicio: placa ARM simulada en WebAssembly.
+- `.env.example` no cambia.
+
+#### Configuración resultante
+
+| Clave | Origen |
+|---|---|
+| `SimulacionApi:UrlBase` | `SimulacionApi__UrlBase` (compose: `http://nginx:80`) |
+| `SimulacionApi:ApiKey` | `SimulacionApi__ApiKey` |
+| `SimulacionApi:TimeoutSegundos` | variable de entorno o valor por defecto (10) |
+| `Simulador:*` | variables `Simulador__*` o valores por defecto de `ConfiguracionSimulador` |
+
+### 5) Solución y rutas
+
+- `SolarUY.sln`: las rutas de `SolarUY.Simulador` y `SolarUY.Simulador.Tests` pasan a `Simulador\src\...` y `Simulador\tests\...`. Se agrega una carpeta de solución `Simulador` que las agrupa. Los GUID de los proyectos no cambian.
+- `Simulador/tests/SolarUY.Simulador.Tests/SolarUY.Simulador.Tests.csproj`: `ProjectReference` a `..\..\src\SolarUY.Simulador\SolarUY.Simulador.csproj`.
+- Comando de tests del simulador: `docker compose run --rm tools dotnet test Simulador/tests/SolarUY.Simulador.Tests`.
+
+### 6) Pruebas
+
+- Los tests existentes **no cambian de contenido**: prueban Dominio, `SimuladorInversor` y `TelemetriaMapper`, que no cambian de comportamiento.
+- No se agregan tests de `CicloTelemetria`, de `Program.cs` ni de `main.mjs` (orquestación y arranque, mismo criterio que la primera versión).
+- No se agregan tests en el monolito ni se modifica `CodeQuality.Tests`.
+
+### 7) Documentación
+
+- `Simulador/README.md` (nuevo): qué es el mock, estructura de la carpeta, variables de entorno, cómo ejecutarlo y cómo probarlo.
+- `README.md`, `ControlCalidad/README.md` y `DESARROLLO.md`: reemplazar la descripción del worker .NET por el mock WebAssembly, con las nuevas rutas y el nuevo comando de tests, y apuntar a `Simulador/README.md`.
+- `DESARROLLO.md`: actualizar el ejemplo del simulador efímero (`docker run ... solaruy-simulador`), que ahora ejecuta el paquete WebAssembly con las mismas variables de entorno.
+
+### 8) Calidad y verificación
+
+- [ ] Spike: `dotnet publish` de `SolarUY.Simulador.Wasm` genera el paquete y `node main.mjs` lo ejecuta fuera de Docker con la API y el `HttpClient` funcionando.
+- [ ] Build: `docker compose run --rm tools dotnet build SolarUY.sln` (incluye la biblioteca y los tests en sus nuevas rutas).
+- [ ] Tests: `docker compose run --rm tools dotnet test SolarUY.sln` en verde, incluidos los del simulador.
+- [ ] ArchUnitNET en verde y `CodeQuality.Tests` sin modificar.
+- [ ] SonarQube ejecutado y hallazgos revisados.
+- [ ] No quedan archivos del mock fuera de `Simulador/` (ni `SolarUY.Simulador*` ni `docker/Dockerfile.simulador` en la raíz).
+- [ ] `docker compose up -d --build` levanta `simulador` junto con el resto, sin ninguna acción manual.
+- [ ] `docker compose logs simulador` muestra un tick cada 5 s con lectura generada y envío exitoso.
+- [ ] `GET /api/telemetria` (con login de desarrollo) responde `200` y `fechaHora` cambia cada 5 s, pasando por el balanceador.
+- [ ] El contenedor `simulador` no tiene variables de MySQL y su imagen no contiene el SDK de .NET ni DLL del monolito.
+- [ ] Con `app` detenida, el mock sigue corriendo, registra los fallos y reanuda el envío al volver; al reiniciar el mock, la energía acumulada vuelve a 0.
+- [ ] Una configuración inválida (por ejemplo `SimulacionApi__ApiKey` vacía) hace que el mock informe el error y termine con código distinto de 0.
+- [ ] `docker compose stop simulador` termina el proceso de forma limpia (sin esperar el timeout de Docker).
+
+### 9) Fuera de alcance
+
+- Blazor y cualquier interfaz web.
+- Emular un procesador ARM real o ejecutar firmware ARM.
+- Cambios en la aplicación, los endpoints internos, nginx o la base de datos.
+- Agregar `SolarUY.Simulador.Wasm` a `SolarUY.sln` o instalar `wasm-tools` en la imagen `tools`.
+- Conservar el worker .NET anterior en paralelo.
+
+## R.5 Ajustes surgidos de la implementación
+
+Diferencias entre el diseño de arriba y lo implementado y verificado (rige esto):
+
+- **Salida del build:** el paquete ejecutable está en `bin/Release/net10.0/browser-wasm/AppBundle/` (el contenido de `publish/` es solo el listado de ensamblados). El `Dockerfile` copia `AppBundle/` con `--chown=node:node`; sin eso el usuario `node` no puede leer `_framework/`.
+- **Sin compilación nativa:** `SolarUY.Simulador.Wasm.csproj` define `WasmBuildNative=false` (usa el runtime de .NET ya compilado, sin Emscripten ni Python), `WasmEmitSymbolMap=false` y `PublishTrimmed=false` (el recorte puede quitar miembros de los DTOs que usa la serialización JSON). Se quitó `InvariantGlobalization`, porque obliga a compilar nativo. El workload `wasm-tools` sigue siendo necesario en la imagen de build.
+- **Logger propio:** el logger de consola de `Microsoft.Extensions.Logging` lanza `PlatformNotSupportedException` en WebAssembly. Se agrega `SolarUY.Simulador.Wasm/LoggerConsola.cs` (`ProveedorLoggerConsola`), que escribe una línea por mensaje con `Console.WriteLine`. Se reemplaza el paquete `Microsoft.Extensions.Logging.Console` por `Microsoft.Extensions.Logging`.
+- **`main.mjs` define el origen global de `fetch`** (`globalThis[Symbol.for('undici.globalOrigin.1')]`). El runtime de .NET detecta el soporte de peticiones en streaming con `new Request("")`, que en Node (sin página) lanza `Failed to parse URL from ` y rompe todo `POST` con cuerpo; el `GET` no se ve afectado. Si la URL no es válida, se omite y la validación de .NET informa el error.
+- **Cierre:** `main.mjs` termina el proceso al recibir `SIGTERM`/`SIGINT` (`process.exit(0)`); `Program.cs` ejecuta el ciclo con `CancellationToken.None`. El mock no tiene estado que persistir.
+- **URL por defecto:** `ConfiguracionSimulacionApi.UrlBase` pasa de `http://app:8080` a `http://nginx:80`, el balanceador, para que el valor por defecto coincida con el único destino permitido.
+- **Solución:** no se agregó una carpeta de solución `Simulador`; solo se actualizaron las rutas de los dos proyectos que ya estaban en `SolarUY.sln`.
+- **Logs:** el formato de línea es `<fecha UTC> <nivel> <categoría>: <mensaje>`.
+
+---
+
+# Revisión 2: control de la simulación desde el dashboard
+
+> Estado: **Aprobada junto con el requerimiento (Gate R); implementación en curso.** Especifica la Revisión 2 de `requirements.md`. Se suma a la Revisión 1; donde contradice a lo anterior, rige esta revisión.
+
+## R2.1 Objetivo
+
+Agregar al dashboard dos botones para el rol `Administrador`: **Iniciar/Detener simulación** (el mock genera como a pleno sol sin importar la hora) y **Simular falla** (todos los paneles de los nodos activos fallan durante las lecturas configuradas). La aplicación guarda la orden vigente en la caché compartida; el mock la consulta en cada ciclo y la aplica; el dashboard se actualiza por SignalR.
+
+## R2.2 Decisiones y supuestos
+
+- **El mock consulta, la aplicación no lo llama.** El mock no abre puertos y solo habla con el balanceador. Por eso la orden viaja por un tercer endpoint interno que el mock lee en cada tick: `GET /api/simulacion/control`. El efecto se ve en la siguiente lectura (máximo un intervalo, 5 s).
+- **Contrato nuevo** (se duplica en ambos lados, igual que los demás DTOs):
+
+  | DTO | Propiedades |
+  |---|---|
+  | `ControlSimulacionDto` | `bool SimulacionForzada`, `long SecuenciaFalla` |
+
+  Estado inicial: `SimulacionForzada = false`, `SecuenciaFalla = 0`.
+- **La falla es un evento, no un estado.** `SecuenciaFalla` es un contador monótono: cada pedido de "Simular falla" lo sube. El mock aplica la falla cuando ve una secuencia mayor que la última que procesó. La primera respuesta que obtiene se toma como línea base y no dispara nada (así reiniciar el mock no reproduce fallas viejas). Una respuesta repetida con la misma secuencia no vuelve a fallar los paneles.
+- **Secuencia:** `max(secuenciaAnterior + 1, TimeProvider.GetUtcNow().UtcTicks)`. Usar los ticks de tiempo hace que siga creciendo aunque la caché se pierda al reiniciar la aplicación.
+- **Hora forzada:** con `SimulacionForzada`, la hora local que usa la curva solar es siempre las 13:00 (`GeneradorGeneracionSolar.HoraPicoGeneracion = 13`). El resto de las reglas (variación, límites por `PotenciaWp` y por inversor, energía acumulada) no cambia.
+- **Falla forzada:** `PanelSimulado.ForzarFalla(int duracionFallaTicks)` deja al panel `EnFalla` con `TicksRestantesFalla = duracionFallaTicks`. Se aplica **después** de `ActualizarEstado` en el tick que corresponde, de modo que la lectura de ese tick ya sale `EnFalla` y el panel informa exactamente N lecturas `EnFalla` (N = `DuracionFallaTicks`). Si ya estaba en falla, se renueva la duración.
+- **Si no se puede consultar el control**, el mock conserva el último control conocido (inicialmente sin simulación forzada y sin línea base). Si la topología no está disponible, el tick se omite y la falla pendiente no se consume.
+- **Estado en la aplicación:** `IAlmacenControlSimulacion` sobre `IDistributedCache` (memoria sin Redis, Redis en el stack), clave `simulacion:control`, vigencia 24 h. Se pierde al reiniciar la aplicación.
+- **Presentación:** el control del administrador es un `[ApiController]` con `[Authorize(Roles = "Administrador")]`, así responde `401` sin sesión y `403` sin el rol (un controlador MVC redirigiría a la pantalla de acceso denegado). Los POST exigen `application/json`; la cookie es `SameSite=Lax`, por lo que un formulario de otro sitio no puede disparar la acción.
+- **Dashboard en vivo:** al cambiar la orden, `ControlSimulacionService` llama a `ITelemetriaNotifier.NotificarLecturaActualizadaAsync`, que ya dispara el refresco del contenido del dashboard en todos los clientes (también entre réplicas, por el backplane de Redis). El indicador y el texto de los botones se refrescan al instante; el efecto sobre la generación llega con la siguiente lectura.
+- **Sin migraciones** ni cambios de esquema. El Dominio del monolito no cambia. El Dominio del simulador sí (`ForzarFalla`, `HoraPicoGeneracion`) y se prueba.
+
+## R2.3 Cambios en el monolito
+
+### Application
+
+- `Dtos/ControlSimulacionDto.cs` (`SimulacionForzada`, `SecuenciaFalla`) y `Dtos/SolicitudSimulacionForzadaDto.cs` (`bool Activa`).
+- `Services/IAlmacenControlSimulacion.cs`: `Task<ControlSimulacionDto> ObtenerAsync(ct)` (devuelve el estado inicial si no hay entrada) y `Task GuardarAsync(ControlSimulacionDto, ct)`.
+- `Services/IControlSimulacionService.cs` y `ControlSimulacionService.cs` (scoped; depende de `IAlmacenControlSimulacion`, `ITelemetriaNotifier`, `TimeProvider` e `ILogger`):
+  - `ObtenerAsync(ct)`: delega en el almacén.
+  - `EstablecerSimulacionForzadaAsync(bool activa, ct)`: guarda el control con la bandera nueva (conserva `SecuenciaFalla`), registra la orden en el log y notifica al dashboard. Devuelve el control resultante.
+  - `SolicitarFallaAsync(ct)`: sube `SecuenciaFalla`, guarda, registra y notifica. Devuelve el control resultante.
+- `Dtos/DashboardTelemetriaViewDto.cs`: nueva propiedad `bool SimulacionForzadaActiva`.
+- `Services/DashboardService.cs`: depende además de `IControlSimulacionService` y completa `SimulacionForzadaActiva`.
+
+### Infrastructure
+
+- `Telemetria/AlmacenControlSimulacionCache.cs` (singleton): igual que `AlmacenTelemetriaCache`, con la clave `ConfiguracionAlmacenTelemetria.ClaveControl` (nueva propiedad, por defecto `simulacion:control`) y la misma vigencia.
+- `Program.cs`: `AddSingleton<IAlmacenControlSimulacion, AlmacenControlSimulacionCache>()` y `AddScoped<IControlSimulacionService, ControlSimulacionService>()`.
+
+### Presentation
+
+- `SimulacionController` (API key): `GET api/simulacion/control` responde `200` con `ControlSimulacionDto`.
+- `Controllers/ControlSimulacionController.cs` (`[ApiController]`, `[Route("api/control-simulacion")]`, `[Authorize(Roles = "Administrador")]`):
+  - `POST simulacion-forzada` (`[Consumes("application/json")]`, cuerpo `{ "activa": true|false }`) responde `200` con `ControlSimulacionDto`.
+  - `POST falla` (`[Consumes("application/json")]`, cuerpo `{}`) responde `200` con `ControlSimulacionDto`.
+  - Controlador delgado: solo invoca a `IControlSimulacionService`.
+- `Views/Dashboard/_DashboardContenido.cshtml`: barra de control. Todos los usuarios ven el indicador "Simulación forzada activa" cuando corresponde. Solo `User.IsInRole("Administrador")` ve los botones "Iniciar simulación"/"Detener simulación" y "Simular falla" (con `data-accion`).
+- `Views/Dashboard/Index.cshtml`: contenedor de mensajes y manejador delegado de clics que hace `fetch` `POST` con JSON a los endpoints y muestra la confirmación inmediata o el error.
+
+## R2.4 Cambios en el mock
+
+- `Contracts/ControlSimulacionDto.cs`: copia del contrato.
+- `Simulation/IProveedorControl.cs`: `Task<ControlSimulacionDto?> ObtenerAsync(CancellationToken)`; `null` significa "no disponible".
+- `Transport/ClienteControl.cs`: `GET api/simulacion/control` con `X-Api-Key`; mismo manejo de errores que `ClienteTopologia` (devuelve `null` y registra una advertencia).
+- `Domain/GeneradorGeneracionSolar.cs`: constante `HoraPicoGeneracion = 13`.
+- `Domain/PanelSimulado.cs`: `ForzarFalla(int duracionFallaTicks)` (valida `> 0`).
+- `Simulation/SimuladorInversor.cs`: nuevo parámetro opcional `IProveedorControl? proveedorControl = null` al final del constructor. En cada tick, después de obtener la topología: consulta el control, actualiza el modo y decide si hay falla pendiente; si el modo es forzado usa la hora 13:00; después de `ActualizarEstado` aplica `ForzarFalla` si hay falla pendiente. Registra los cambios de modo (`Simulación forzada activada/desactivada`) y `Falla forzada aplicada a {N} panel(es)`.
+- `Wasm/Program.cs`: crea `ClienteControl` y lo pasa al `SimuladorInversor`.
+
+## R2.5 Pruebas
+
+- `PanelSimuladoTests`: `ForzarFalla` deja al panel en falla con la duración indicada; informa exactamente N lecturas `EnFalla` y la N+1 `Operativo`; renueva la duración si ya estaba en falla; duración `<= 0` lanza `ArgumentOutOfRangeException`; la lectura es 0 W.
+- `SimuladorInversorTests` (con un `IProveedorControl` falso y reloj fijo de madrugada): sin forzar, de noche, 0 W; con `SimulacionForzada`, la potencia es la registrada (13:00) aunque sea de noche; al desactivarla vuelve a 0 W; la primera respuesta con `SecuenciaFalla > 0` es línea base y no falla; una secuencia mayor falla todos los paneles activos con 0 W; la misma secuencia repetida no vuelve a fallar; si el control no está disponible se conserva el modo anterior; con topología no disponible la falla pendiente no se consume.
+- No se agregan tests en Application, Infrastructure ni Presentation del monolito.
+
+## R2.6 Documentación
+
+`Simulador/README.md` (endpoint de control y botones), `DESARROLLO.md` (cómo usar los botones) y `ControlCalidad/README.md`.
+
+## R2.7 Verificación
+
+- [x] `dotnet build` y `dotnet test SolarUY.sln` en verde (incluido ArchUnitNET); `CodeQuality.Tests` sin modificar.
+- [x] `GET /api/simulacion/control` sin API key responde `401`; con key, `200`.
+- [x] `POST /api/control-simulacion/*` sin sesión se rechaza (`302` al login, ver R2.9). Con sesión sin rol `Administrador` debería rechazarse: **no probado** (el login de desarrollo solo crea administradores).
+- [x] Como administrador, "Iniciar simulación" hace que las lecturas pasen a generar potencia aunque sea de noche y el dashboard se actualice solo; "Detener simulación" vuelve a 0 W.
+- [x] "Simular falla" pone los paneles en falla durante 6 lecturas y luego vuelven a `Operativo`.
+- [ ] Un usuario sin el rol no ve los botones (**no probado**: se apoya en `User.IsInRole("Administrador")`).
+
+## R2.8 Fuera de alcance
+
+Los de la Revisión 2 de `requirements.md`.
+
+## R2.9 Ajustes surgidos de la implementación
+
+Diferencias entre el diseño de arriba y lo implementado y verificado (rige esto):
+
+- **Sin sesión: `302`, no `401`.** Desde que el login es OpenID Connect (req010) el desafío de autenticación redirige a Keycloak, así que `POST /api/control-simulacion/*` sin sesión (o con la API key, que no es una sesión) responde `302` al login. Es el mismo comportamiento que ya tiene `GET /api/telemetria`. Sigue siendo un rechazo: la orden no se registra. Los endpoints con API key (`GET /api/simulacion/control`) siguen respondiendo `401` sin key.
+- **El dashboard se conecta a SignalR sin negociación.** Con 2 réplicas de `app` detrás de nginx (reparto por turnos, sin sesión pegajosa), la negociación y el WebSocket caían en réplicas distintas y la conexión fallaba (0 de 12 intentos en la prueba); conectando directo por WebSocket (`skipNegotiation: true`, `transport: WebSockets`) conectó 12 de 12. Sin este cambio, el dashboard no se actualizaba en vivo con las dos réplicas. Los eventos entre réplicas viajan por el backplane de Redis. El mismo patrón sigue en `wwwroot/js/alertas-indicador.js` (req009), que no se modificó por quedar fuera de este requerimiento.
+- **Texto de los botones:** el botón alterna entre "Iniciar simulación" y "Detener simulación"; el HTML lo codifica (`simulaci&#xF3;n`) pero el navegador lo muestra normal.
+- **Mensaje de confirmación:** el dashboard muestra, sobre el contenido, "Simulación iniciada/detenida…" o "Falla solicitada…", indicando que el efecto llega con la próxima lectura (hasta 5 segundos).
+- **Notificación tolerante a fallos:** si SignalR falla al avisar al dashboard, la orden igual queda guardada y el pedido responde `200` (se registra una advertencia).
+- **Integración con req013 (visuales):** tras traer el commit "visuales req013", los botones, el indicador y la conexión directa de SignalR se reaplicaron sobre el diseño nuevo de `Views/Dashboard/Index.cshtml` y `_DashboardContenido.cshtml` (barra de control sobre las tarjetas de resumen). Se verificó build, tests y que las páginas principales responden `200`.
+- **Renombrado del botón y fallas aleatorias (cambio posterior):** el botón "Iniciar/Detener simulación" pasa a "Forzar día" / "Volver a hora real" y el indicador a "Día forzado activo", porque la simulación ya corre sola con el stack y el botón solo fuerza la hora. Los identificadores internos (`SimulacionForzada`, `simulacion-forzada`) no cambian. Con el día forzado siguen las fallas aleatorias (la falla aleatoria se evalúa siempre; lo forzado solo cambia la hora de la curva solar), lo que cubren dos tests nuevos.
+- **Alertas:** `wwwroot/js/alertas-indicador.js` (req009) se conecta también sin negociación (`skipNegotiation` + WebSockets), con el mismo problema de las dos réplicas que el dashboard.
+- **Probabilidad de falla en el stack:** `docker-compose.yml` fija `Simulador__ProbabilidadFalla` en `0.25` (por defecto del mock sigue siendo `0.05`) mediante la variable opcional `SIMULADOR_PROBABILIDAD_FALLA` del `.env`, para ver fallas aleatorias seguido (con un panel, una cada ~20 s en promedio). El mock registra el valor efectivo al arrancar.
+
+---
+
+# Revisión 3: recuperación de fallas probabilística
+
+> Estado: **Implementada.** Especifica la Revisión 3 de `requirements.md`. Reemplaza el modelo de duración fija de la falla descrito en la Revisión 2 y en la primera versión.
+
+## R3.1 Decisiones
+
+- `PanelSimulado` deja de llevar `TicksRestantesFalla`. El estado de falla se resuelve en cada tick con **un único valor aleatorio** en [0, 1]:
+  - panel `EnFalla`: se recupera (`Operativo`) si `valorAleatorio < probabilidadRecuperacion`; si no, sigue en falla;
+  - panel `Operativo`: falla si `valorAleatorio < probabilidadFalla`.
+  Las dos ramas son excluyentes, así que un panel que se recupera no vuelve a fallar en esa lectura (R25).
+- Firma nueva: `ActualizarEstado(decimal probabilidadFalla, decimal probabilidadRecuperacion, decimal valorAleatorio)`. Valida los tres valores en [0, 1]. Con `probabilidadRecuperacion = 0` el panel no se recupera nunca; con `1` se recupera en la lectura siguiente.
+- `ForzarFalla()` (sin parámetros) deja al panel `EnFalla`. Se aplica después de `ActualizarEstado` en el tick en que se pide, por lo que esa lectura ya sale `EnFalla`; desde la lectura siguiente rige la misma recuperación probabilística (R26). Si el panel ya estaba en falla, no cambia nada.
+- `ConfiguracionSimulador`: se elimina `DuracionFallaTicks` y se agrega `ProbabilidadRecuperacion` (por defecto `0.40`, validada en [0, 1] con el mensaje `Simulador:ProbabilidadRecuperacion debe estar entre 0 y 1.`). `ProbabilidadFalla` pasa a `0.20` por defecto.
+- Duración esperada de una falla: `1 / probabilidadRecuperacion` lecturas (2,5 con 40 %, unos 12,5 s).
+- El contrato con la aplicación no cambia: el JSON sigue informando `Operativo` o `EnFalla`.
+
+## R3.2 Cambios
+
+- Mock: `Domain/PanelSimulado.cs`, `Simulation/ConfiguracionSimulador.cs`, `Simulation/SimuladorInversor.cs` y `Wasm/Program.cs` (el log de arranque informa ambas probabilidades).
+- Tests: se reescriben los de `PanelSimuladoTests` que dependían de la duración fija y se ajustan los de `SimuladorInversorTests`.
+- Docker: `docker-compose.yml` pasa `Simulador__ProbabilidadFalla` (`${SIMULADOR_PROBABILIDAD_FALLA:-0.20}`) y `Simulador__ProbabilidadRecuperacion` (`${SIMULADOR_PROBABILIDAD_RECUPERACION:-0.40}`); se documentan en `.env.example`.
+- Documentación: `Simulador/README.md` y `DESARROLLO.md`.
+- El monolito no cambia.

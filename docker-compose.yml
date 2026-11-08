@@ -138,16 +138,21 @@ services:
     networks:
       - solaruy
 
-  # Mock del inversor: componente independiente. No accede a MySQL; obtiene la topología de `app`
-  # y le envía la telemetría por HTTP al balanceador (req012).
+  # Mock de la placa ARM (inversor y sensores): componente independiente compilado a WebAssembly y
+  # ejecutado con Node.js. No accede a MySQL; obtiene la topología y envía la telemetría por HTTP al
+  # balanceador (req006 rev. 1). Todo su código vive en ./Simulador.
   simulador:
     build:
-      context: .
-      dockerfile: docker/Dockerfile.simulador
+      context: ./Simulador
+      dockerfile: Dockerfile
     restart: unless-stopped
     environment:
       SimulacionApi__UrlBase: http://nginx:80
       SimulacionApi__ApiKey: ${SIMULACION_API_KEY:-SolarUY.Local2026}
+      # Por panel y por lectura (cada 5 s), entre 0 y 1: probabilidad de que falle un panel operativo y de que
+      # se recupere uno en falla. Se cambian desde el .env.
+      Simulador__ProbabilidadFalla: ${SIMULADOR_PROBABILIDAD_FALLA:-0.20}
+      Simulador__ProbabilidadRecuperacion: ${SIMULADOR_PROBABILIDAD_RECUPERACION:-0.40}
     depends_on:
       nginx:
         condition: service_started

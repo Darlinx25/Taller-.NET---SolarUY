@@ -18,6 +18,8 @@
     <span class="badge text-bg-success align-self-start">En vivo</span>
 </div>
 
+<div id="controlMensaje" class="alert d-none" role="status"></div>
+
 <div id="dashboardLive">
     <partial name="_DashboardContenido" model="Model" />
 </div>
@@ -26,8 +28,14 @@
         integrity="sha384-mU1xC5yC2LldSW74Rj1Ax8wPiLw/28V5eh51uKJMlBbRVsOtUYd4xyzNsgIAJARB"
         crossorigin="anonymous"></script>
 <script>
+    // Con varias réplicas detrás del balanceador (sin sesión pegajosa) la negociación y el WebSocket pueden caer
+    // en réplicas distintas y la conexión falla. Conectar directo por WebSocket evita la negociación; los eventos
+    // entre réplicas viajan por el backplane de Redis.
     const connection = new signalR.HubConnectionBuilder()
-        .withUrl('/hubs/telemetria')
+        .withUrl('/hubs/telemetria', {
+            skipNegotiation: true,
+            transport: signalR.HttpTransportType.WebSockets
+        })
         .withAutomaticReconnect()
         .build();
 
@@ -48,5 +56,57 @@
 
     connection.start().catch(function (err) {
         console.error(err.toString());
+    });
+
+    // Botones "Forzar día" y "Simular falla" (solo se renderizan para el rol Administrador).
+    const urlSimulacionForzada = '@Url.Content("~/api/control-simulacion/simulacion-forzada")';
+    const urlFalla = '@Url.Content("~/api/control-simulacion/falla")';
+    const mensaje = document.getElementById('controlMensaje');
+
+    function mostrarMensaje(texto, clase) {
+        mensaje.className = 'alert ' + clase;
+        mensaje.textContent = texto;
+    }
+
+    document.getElementById('dashboardLive').addEventListener('click', async function (evento) {
+        const boton = evento.target.closest('button[data-accion]');
+        if (!boton) {
+            return;
+        }
+
+        const esFalla = boton.dataset.accion === 'falla';
+        const activa = boton.dataset.activa === 'true';
+        boton.disabled = true;
+
+        try {
+            const response = await fetch(esFalla ? urlFalla : urlSimulacionForzada, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(esFalla ? {} : { activa: activa })
+            });
+
+            if (response.status === 401 || response.status === 403) {
+                mostrarMensaje('No tiene permiso para controlar la simulación.', 'alert-danger');
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error('Respuesta ' + response.status);
+            }
+
+            mostrarMensaje(
+                esFalla
+                    ? 'Falla solicitada: los paneles fallarán en la próxima lectura (hasta 5 segundos).'
+                    : (activa
+                        ? 'Día forzado: se generará como a pleno sol desde la próxima lectura (hasta 5 segundos).'
+                        : 'Hora real: se volverá a generar según la hora real desde la próxima lectura (hasta 5 segundos).'),
+                'alert-success');
+        } catch (err) {
+            console.error(err.toString());
+            mostrarMensaje('No se pudo enviar la orden de simulación.', 'alert-danger');
+        } finally {
+            boton.disabled = false;
+        }
     });
 </script>

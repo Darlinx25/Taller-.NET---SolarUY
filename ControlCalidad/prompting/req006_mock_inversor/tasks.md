@@ -172,3 +172,98 @@
 - **Dependencias de capas:** los archivos nuevos de `SolarUY/Application/` no usan EF Core, ASP.NET Core, `Infrastructure` ni `Controllers` (el `using Microsoft.AspNetCore.Http` de `TareaMantenimientoService`, de req005, es previo); los controladores nuevos no usan repositorios ni `DbContext`.
 - **SonarQube:** el equipo ejecutó el análisis sobre `SolarUY.sln` (incluye `SolarUY.Simulador`) al cerrar req005 y req008. Según la nota de `ControlCalidad/README.md`, el gate quedó en ERROR por cobertura nueva no reportada (0 %) y duplicación nueva (5,7 %), con 8 hallazgos menores en `SolarUY.Simulador` aceptados como deuda. Esos hallazgos no se revisaron uno por uno en este requerimiento; con eso `req006` figura como `Implementado` en `ControlCalidad/README.md`.
 - **Ajustes surgidos de la verificación:** (1) `GET /api/telemetria` sin sesión responde `401`, no `302` (spec y tareas corregidas); (2) se bajó a `Warning` el log de `Microsoft.EntityFrameworkCore.Database.Command` en la app y de `System.Net.Http.HttpClient` en el simulador, porque la topología se consulta cada 5 s; (3) el hosted service usa `Transport` (spec ajustada).
+
+---
+
+# Revisión 1: mock como placa ARM simulada en WebAssembly
+
+Tareas del cambio definido en la Revisión 1 de `requirements.md` y `specs.md`. Las tareas anteriores se conservan como registro de la primera versión.
+
+## R0. Spike
+
+- [x] R0.1 Crear `SolarUY.Simulador.Wasm` (consola `browser-wasm`) y confirmar que `dotnet publish` genera el paquete, que `node main.mjs` lo ejecuta, que `HttpClient` llega por `fetch` y que las variables de entorno llegan a .NET. Ajustar `specs.md` si algo difiere.
+
+## R1. Reestructura en una sola carpeta
+
+- [x] R1.1 `git mv SolarUY.Simulador Simulador/src/SolarUY.Simulador` y `git mv SolarUY.Simulador.Tests Simulador/tests/SolarUY.Simulador.Tests`.
+- [x] R1.2 `git mv docker/Dockerfile.simulador Simulador/Dockerfile` y crear `Simulador/.dockerignore`.
+- [x] R1.3 Actualizar `SolarUY.sln` (rutas nuevas, carpeta de solución `Simulador`) y el `ProjectReference` del proyecto de tests.
+
+## R2. Biblioteca `SolarUY.Simulador`
+
+- [x] R2.1 Convertir el `.csproj` en biblioteca (`Microsoft.NET.Sdk`) sin `Hosting` ni `Http`; eliminar `Program.cs` y `appsettings.json`.
+- [x] R2.2 Reemplazar `SimuladorTelemetriaHostedService` por `CicloTelemetria` (`EjecutarAsync`, `Task.Delay`).
+- [x] R2.3 Agregar `Validar()` a `ConfiguracionSimulador` y `ConfiguracionSimulacionApi` con los mismos mensajes.
+
+## R3. Proyecto `SolarUY.Simulador.Wasm`
+
+- [x] R3.1 `Program.cs`: configuración por variables de entorno, validación, logger de consola, `HttpClient`, armado de dependencias y cierre ordenado.
+- [x] R3.2 `main.mjs`: variables de entorno al runtime, señales `SIGTERM`/`SIGINT`, código de salida.
+
+## R4. Docker
+
+- [x] R4.1 `Simulador/Dockerfile` (SDK con `wasm-tools` + `node:22-alpine`).
+- [x] R4.2 `docker-compose.yml`: `build.context: ./Simulador`, `dockerfile: Dockerfile` y comentario.
+
+## R5. Documentación
+
+- [x] R5.1 Crear `Simulador/README.md`.
+- [x] R5.2 Actualizar `README.md`, `ControlCalidad/README.md` y `DESARROLLO.md`.
+
+## R6. Verificación final
+
+- [x] R6.1 `docker compose run --rm tools dotnet build SolarUY.sln` y `dotnet test SolarUY.sln` en verde (incluye ArchUnitNET; `CodeQuality.Tests` sin modificar).
+- [x] R6.2 `docker compose up -d --build`: `simulador` corre junto con el stack, un tick cada 5 s y `GET /api/telemetria` responde `200` con `fechaHora` cambiando.
+- [x] R6.3 Resiliencia: con `app` detenida el mock sigue y reanuda; configuración inválida termina con código distinto de 0; `docker compose stop simulador` cierra limpio.
+- [x] R6.4 Confirmar que no quedan archivos del mock fuera de `Simulador/` y que no hay mención de variables de MySQL en el contenedor.
+
+## Notas de la Revisión 1
+
+- Verificado: `dotnet build SolarUY.sln` sin errores; `dotnet test SolarUY.sln` en verde (`SolarUY.Simulador.Tests` 102, `SolarUY.Tests` 161, `CodeQuality.Tests` 9). `CodeQuality.Tests`, `SolarUY/Domain/`, `SolarUY.Tests/` y las migraciones sin cambios.
+- Verificado con el stack: `simulador` (WebAssembly en Node.js) genera y envía una lectura cada ~5 s por `nginx`; la `app` registra cada lectura recibida. Con un balanceador inalcanzable omite el tick y sigue corriendo; con configuración inválida informa cada error y sale con código 1; `docker compose stop simulador` cierra en menos de 1 s.
+- **SonarQube no se ejecutó en esta revisión** (requiere `SONAR_TOKEN`); queda pendiente de la persona que cierra el requerimiento.
+- Los ajustes respecto del diseño original están en `specs.md`, sección R.5.
+
+---
+
+# Revisión 2: control de la simulación desde el dashboard
+
+## S1. Mock (`Simulador/`)
+
+- [x] S1.1 `Contracts/ControlSimulacionDto.cs`, `Simulation/IProveedorControl.cs` y `Transport/ClienteControl.cs`.
+- [x] S1.2 `GeneradorGeneracionSolar.HoraPicoGeneracion` y `PanelSimulado.ForzarFalla`.
+- [x] S1.3 `SimuladorInversor`: modo forzado, falla pendiente por secuencia y logs; `Wasm/Program.cs` crea el `ClienteControl`.
+- [x] S1.4 Tests de Dominio y del orquestador (`PanelSimuladoTests`, `SimuladorInversorTests`).
+
+## S2. Aplicación (monolito)
+
+- [x] S2.1 `ControlSimulacionDto`, `SolicitudSimulacionForzadaDto`, `IAlmacenControlSimulacion`, `IControlSimulacionService` y `ControlSimulacionService`.
+- [x] S2.2 `DashboardTelemetriaViewDto.SimulacionForzadaActiva` y `DashboardService`.
+
+## S3. Infraestructura y registro
+
+- [x] S3.1 `AlmacenControlSimulacionCache` y `ConfiguracionAlmacenTelemetria.ClaveControl`.
+- [x] S3.2 Registros en `Program.cs`.
+
+## S4. Presentación
+
+- [x] S4.1 `GET api/simulacion/control` en `SimulacionController`.
+- [x] S4.2 `ControlSimulacionController` (rol `Administrador`).
+- [x] S4.3 `_DashboardContenido.cshtml` e `Index.cshtml`: indicador, botones y manejador de clics.
+
+## S5. Documentación y verificación
+
+- [x] S5.1 `Simulador/README.md`, `DESARROLLO.md` y `ControlCalidad/README.md`.
+- [x] S5.2 Build y tests en verde; prueba en el stack: endpoints, permisos, botones y actualización en vivo.
+
+## Notas de la Revisión 2
+
+- Verificado: `dotnet build SolarUY.sln` sin errores; `dotnet test SolarUY.sln` en verde (`SolarUY.Simulador.Tests` 117, `SolarUY.Tests` 161, `CodeQuality.Tests` 9). `CodeQuality.Tests`, `SolarUY/Domain/` y las migraciones sin cambios.
+- Verificado en el stack (2 réplicas de `app`): `GET /api/simulacion/control` `401` sin key y `200` con key; "Iniciar simulación" lleva la potencia de 0 W a ~1500 W en plena noche; "Simular falla" produce exactamente 6 lecturas `EnFalla` (0 W) y luego `Operativo`; "Detener simulación" vuelve a 0 W; el evento de SignalR llega al cliente en el mismo instante en que termina el pedido del administrador.
+- **No probado:** el uso con un usuario sin rol `Administrador` (el login de desarrollo solo crea administradores): que no vea los botones y reciba el rechazo se apoya en `User.IsInRole` y `[Authorize(Roles = "Administrador")]`. Tampoco se probó el dashboard en un navegador real (se probó el hub con un cliente SignalR). SonarQube no se ejecutó.
+- Los ajustes respecto del diseño están en `specs.md`, sección R2.9.
+
+## Notas de la Revisión 3
+
+- Verificado: `dotnet build SolarUY.sln` sin errores; `dotnet test SolarUY.sln` en verde (`SolarUY.Simulador.Tests` 121, `SolarUY.Tests` 161, `CodeQuality.Tests` 9). El monolito no cambia.
+- Tests reescritos de `PanelSimuladoTests` (recuperación probabilística, falla y recuperación seguras, rangos, falla forzada) y ajuste de `SimuladorInversorTests`.

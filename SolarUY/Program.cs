@@ -105,6 +105,8 @@ builder.Services.Configure<ConfiguracionAlmacenTelemetria>(
 builder.Services.Configure<ConfiguracionApiSimulacion>(
     builder.Configuration.GetSection(ConfiguracionApiSimulacion.Seccion));
 builder.Services.AddSingleton<IAlmacenTelemetria, AlmacenTelemetriaCache>();
+builder.Services.AddSingleton<IAlmacenControlSimulacion, AlmacenControlSimulacionCache>();
+builder.Services.AddScoped<IControlSimulacionService, ControlSimulacionService>();
 builder.Services.AddSingleton<IValidadorApiKey, ValidadorApiKey>();
 builder.Services.AddSingleton<ValidadorTelemetria>();
 builder.Services.AddScoped<ITelemetriaService, TelemetriaService>();
