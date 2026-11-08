@@ -1,26 +1,183 @@
-@model ParqueSolarDto
+@model ParqueSolarDetalleViewModel
 @{
     ViewData["Title"] = "Detalle del parque solar";
+    var returnUrlParque = Url.Action("Details", "ParquesSolares", new { id = Model.Parque.Id });
+    var migas = new List<BreadcrumbItem>
+    {
+        new() { Texto = "Inicio", Url = Url.Action("Index", "Home") },
+        new() { Texto = "Parques solares", Url = Url.Action("Index", "ParquesSolares") },
+        new() { Texto = Model.Parque.Nombre }
+    };
+    var emptyState = new EmptyStateViewModel
+    {
+        Mensaje = "Este parque solar todavía no tiene nodos registrados.",
+        TextoAccion = "Agregar nodo",
+        UrlAccion = Url.Action("Create", "Nodos", new { parqueId = Model.Parque.Id, returnUrl = returnUrlParque })
+    };
 }
 
-<h1 class="h3 mb-4">Detalle del parque solar</h1>
+<partial name="_Breadcrumbs" model="migas" />
 
-<dl class="row">
-    <dt class="col-sm-3">@Html.DisplayNameFor(model => model.Nombre)</dt>
-    <dd class="col-sm-9">@Model.Nombre</dd>
-
-    <dt class="col-sm-3">@Html.DisplayNameFor(model => model.Ubicacion)</dt>
-    <dd class="col-sm-9">@Model.Ubicacion</dd>
-
-    <dt class="col-sm-3">@Html.DisplayNameFor(model => model.CapacidadEstimadaMW)</dt>
-    <dd class="col-sm-9">@(Model.CapacidadEstimadaMW?.ToString("0.00") ?? "-")</dd>
-
-    <dt class="col-sm-3">@Html.DisplayNameFor(model => model.FechaCreacion)</dt>
-    <dd class="col-sm-9">@Model.FechaCreacion.ToString("yyyy-MM-dd HH:mm")</dd>
-</dl>
-
-<div class="mt-4">
-    <a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.Id">Editar</a>
-    <a class="btn btn-info text-white" asp-controller="Nodos" asp-action="Index" asp-route-parqueId="@Model.Id">Gestionar nodos e inversores</a>
-    <a class="btn btn-secondary" asp-action="Index">Volver</a>
+<div class="app-page-header">
+    <div>
+        <h1 class="h3">@Model.Parque.Nombre</h1>
+        <p class="app-page-subtitle">@Model.Parque.Ubicacion</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-success"
+           asp-controller="Nodos" asp-action="Create"
+           asp-route-parqueId="@Model.Parque.Id"
+           asp-route-returnUrl="@returnUrlParque">Agregar nodo</a>
+        <a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.Parque.Id">Editar</a>
+        <a class="btn btn-secondary" asp-action="Index">Volver</a>
+    </div>
 </div>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-4">
+        <div class="app-stat-card">
+            <div class="app-stat-label">Nodos</div>
+            <div class="app-stat-value">@Model.CantidadNodos</div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="app-stat-card">
+            <div class="app-stat-label">Paneles</div>
+            <div class="app-stat-value">@Model.CantidadPaneles</div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="app-stat-card">
+            <div class="app-stat-label">Potencia instalada</div>
+            <div class="app-stat-value">@Model.PotenciaTotalWp.ToString("N0") Wp</div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-3">Capacidad estimada</dt>
+            <dd class="col-sm-9">@(Model.Parque.CapacidadEstimadaMW?.ToString("0.00") ?? "-") MW</dd>
+            <dt class="col-sm-3">Fecha de alta</dt>
+            <dd class="col-sm-9 mb-0">@Model.Parque.FechaCreacion.ToString("yyyy-MM-dd HH:mm")</dd>
+        </dl>
+    </div>
+</div>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+    <h2 class="h5 mb-0">Nodos</h2>
+    <a class="btn btn-sm btn-outline-success"
+       asp-controller="Nodos" asp-action="Create"
+       asp-route-parqueId="@Model.Parque.Id"
+       asp-route-returnUrl="@returnUrlParque">Agregar nodo</a>
+</div>
+
+@if (Model.Nodos.Count == 0)
+{
+    <partial name="_EmptyState" model="emptyState" />
+}
+else
+{
+    <div class="accordion" id="accordionNodos">
+        @foreach (var item in Model.Nodos)
+        {
+            var nodo = item.Nodo;
+            var collapseId = $"nodo-{nodo.Id}";
+            var returnUrlNodo = Url.Action("Details", "Nodos", new { id = nodo.Id });
+
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="heading-@nodo.Id">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#@collapseId" aria-expanded="false" aria-controls="@collapseId">
+                        <span class="fw-semibold me-2">@nodo.Codigo</span>
+                        <partial name="_EstadoBadge" model="nodo.Estado" />
+                        <span class="text-muted small ms-2 d-none d-md-inline">
+                            @(nodo.Inversor is null ? "Sin inversor" : $"{nodo.Inversor.Marca} {nodo.Inversor.Modelo}")
+                        </span>
+                        <span class="badge text-bg-light ms-auto me-2">@item.CantidadPaneles paneles</span>
+                    </button>
+                </h2>
+                <div id="@collapseId" class="accordion-collapse collapse" aria-labelledby="heading-@nodo.Id"
+                     data-bs-parent="#accordionNodos">
+                    <div class="accordion-body">
+                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                            <div class="text-muted small">
+                                <div>
+                                    Inversor:
+                                    @(nodo.Inversor is null
+                                        ? "Sin inversor"
+                                        : $"{nodo.Inversor.Marca} {nodo.Inversor.Modelo} ({nodo.Inversor.NumeroSerie})")
+                                </div>
+                                <div>Potencia de paneles: @item.PotenciaTotalWp.ToString("N0") Wp</div>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2">
+                                <a class="btn btn-sm btn-outline-secondary" asp-controller="Nodos" asp-action="Details" asp-route-id="@nodo.Id">Detalle</a>
+                                <a class="btn btn-sm btn-outline-success"
+                                   asp-controller="Paneles" asp-action="Create"
+                                   asp-route-nodoId="@nodo.Id"
+                                   asp-route-returnUrl="@returnUrlNodo">Agregar panel</a>
+                                <a class="btn btn-sm btn-outline-primary"
+                                   asp-controller="Nodos" asp-action="Edit"
+                                   asp-route-id="@nodo.Id"
+                                   asp-route-returnUrl="@returnUrlParque">Editar</a>
+                                <a class="btn btn-sm btn-outline-danger"
+                                   asp-controller="Nodos" asp-action="Delete"
+                                   asp-route-id="@nodo.Id"
+                                   asp-route-returnUrl="@returnUrlParque">Eliminar</a>
+                            </div>
+                        </div>
+
+                        @if (item.Paneles.Count == 0)
+                        {
+                            <p class="text-muted mb-0">Este nodo todavía no tiene paneles registrados.</p>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Código/Serie</th>
+                                            <th scope="col">Marca</th>
+                                            <th scope="col">Modelo</th>
+                                            <th scope="col" class="text-end">Potencia (Wp)</th>
+                                            <th scope="col" class="text-end">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var panel in item.Paneles)
+                                        {
+                                            <tr>
+                                                <td>@panel.CodigoSerie</td>
+                                                <td>@panel.Marca</td>
+                                                <td>@panel.Modelo</td>
+                                                <td class="text-end">@panel.PotenciaWp.ToString("0.00")</td>
+                                                <td>
+                                                    <div class="app-table-actions">
+                                                        <a class="btn btn-sm btn-outline-secondary" asp-controller="Paneles" asp-action="Details" asp-route-id="@panel.Id">Detalle</a>
+                                                        <a class="btn btn-sm btn-outline-primary"
+                                                           asp-controller="Paneles" asp-action="Edit"
+                                                           asp-route-id="@panel.Id"
+                                                           asp-route-returnUrl="@returnUrlNodo">Editar</a>
+                                                        <a class="btn btn-sm btn-outline-danger"
+                                                           asp-controller="Paneles" asp-action="Delete"
+                                                           asp-route-id="@panel.Id"
+                                                           asp-route-returnUrl="@returnUrlNodo">Eliminar</a>
+                                                        <a class="btn btn-sm btn-outline-warning"
+                                                           asp-controller="TareasMantenimiento" asp-action="Index"
+                                                           asp-route-panelId="@panel.Id">Tareas</a>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}

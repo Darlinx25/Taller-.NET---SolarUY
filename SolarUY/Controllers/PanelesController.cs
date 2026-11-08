@@ -32,23 +32,25 @@ public class PanelesController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Create(Guid nodoId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(Guid nodoId, string? returnUrl, CancellationToken cancellationToken)
     {
         if (!await CargarNodoAsync(nodoId, cancellationToken))
             return NotFound();
 
+        ViewBag.ReturnUrl = returnUrl;
         return View(new CrearPanelDto { NodoId = nodoId });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(CrearPanelDto dto, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(CrearPanelDto dto, string? returnUrl, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
             if (!await CargarNodoAsync(dto.NodoId, cancellationToken))
                 return RedirectToAction("Index", "ParquesSolares");
 
+            ViewBag.ReturnUrl = returnUrl;
             return View(dto);
         }
 
@@ -68,10 +70,16 @@ public class PanelesController : Controller
                 "Ya existe un panel con ese código/serie en el nodo.");
 
             await CargarNodoAsync(dto.NodoId, cancellationToken);
+            ViewBag.ReturnUrl = returnUrl;
             return View(dto);
         }
 
         TempData["Mensaje"] = $"El panel '{dto.CodigoSerie}' se registró correctamente.";
+        if (Url.IsLocalUrl(returnUrl))
+        {
+            return Redirect(returnUrl!);
+        }
+
         return RedirectToAction(nameof(Index), new { nodoId = dto.NodoId });
     }
 
@@ -83,13 +91,14 @@ public class PanelesController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
         var panel = await _panelService.ObtenerPanelAsync(id, cancellationToken);
         if (panel is null)
             return NotFound();
 
         ViewBag.Panel = panel;
+        ViewBag.ReturnUrl = returnUrl;
 
         return View(new EditarPanelDto
         {
@@ -106,13 +115,14 @@ public class PanelesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(EditarPanelDto dto, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(EditarPanelDto dto, string? returnUrl, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
             if (!await CargarPanelAsync(dto.Id, cancellationToken))
                 return RedirectToAction("Index", "ParquesSolares");
 
+            ViewBag.ReturnUrl = returnUrl;
             return View(dto);
         }
 
@@ -132,24 +142,31 @@ public class PanelesController : Controller
                 "Ya existe un panel con ese código/serie en el nodo.");
 
             await CargarPanelAsync(dto.Id, cancellationToken);
+            ViewBag.ReturnUrl = returnUrl;
             return View(dto);
         }
 
         TempData["Mensaje"] = $"El panel '{dto.CodigoSerie}' se actualizó correctamente.";
+        if (Url.IsLocalUrl(returnUrl))
+        {
+            return Redirect(returnUrl!);
+        }
+
         return RedirectToAction(nameof(Index), new { nodoId = dto.NodoId });
     }
 
     [HttpGet]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Delete(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
         var panel = await _panelService.ObtenerPanelAsync(id, cancellationToken);
+        ViewBag.ReturnUrl = returnUrl;
         return panel is null ? NotFound() : View(panel);
     }
 
     [HttpPost]
     [ActionName(nameof(Delete))]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteConfirmed(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> DeleteConfirmed(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
         var panel = await _panelService.ObtenerPanelAsync(id, cancellationToken);
         if (panel is null)
@@ -169,6 +186,11 @@ public class PanelesController : Controller
         }
 
         TempData["Mensaje"] = "El panel se eliminó correctamente.";
+        if (Url.IsLocalUrl(returnUrl))
+        {
+            return Redirect(returnUrl!);
+        }
+
         return RedirectToAction(nameof(Index), new { nodoId = panel.NodoId });
     }
 

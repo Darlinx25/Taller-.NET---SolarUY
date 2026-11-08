@@ -1,50 +1,89 @@
 @model SolarUY.Application.Dtos.EditarTareaMantenimientoDto
 @{
-    ViewData["Title"] = "Editar tarea";
     var tarea = ViewBag.Tarea as SolarUY.Application.Dtos.TareaMantenimientoDetalleDto;
+    ViewData["Title"] = "Editar tarea";
+
+    var migas = new List<BreadcrumbItem>
+    {
+        new() { Texto = "Inicio", Url = Url.Action("Index", "Home") },
+        new() { Texto = "Parques solares", Url = Url.Action("Index", "ParquesSolares") }
+    };
+    if (tarea is not null)
+    {
+        migas.Add(new() { Texto = tarea.ParqueSolarNombre ?? "Parque solar", Url = tarea.ParqueSolarId.HasValue ? Url.Action("Details", "ParquesSolares", new { id = tarea.ParqueSolarId }) : null });
+        migas.Add(new() { Texto = tarea.NodoCodigo ?? "Nodo", Url = tarea.NodoId.HasValue ? Url.Action("Details", "Nodos", new { id = tarea.NodoId }) : null });
+        migas.Add(new() { Texto = tarea.PanelCodigoSerie ?? "Panel", Url = Url.Action("Details", "Paneles", new { id = tarea.PanelId }) });
+        migas.Add(new() { Texto = "Tareas", Url = Url.Action("Index", "TareasMantenimiento", new { panelId = tarea.PanelId }) });
+    }
+    migas.Add(new() { Texto = "Editar tarea" });
 }
 
-<h1>Editar tarea de mantenimiento</h1>
+<partial name="_Breadcrumbs" model="migas" />
 
-@if (tarea != null)
-{
-    <div class="alert alert-info">
-        <strong>Parque Solar:</strong> @tarea.ParqueSolarNombre &rarr; <strong>Nodo:</strong> @tarea.NodoCodigo &rarr; <strong>Panel:</strong> @tarea.PanelCodigoSerie
+<div class="app-page-header">
+    <div>
+        <h1 class="h3">Editar tarea de mantenimiento</h1>
+        <p class="app-page-subtitle">@tarea?.TipoTarea</p>
     </div>
+</div>
+
+@if (tarea is not null)
+{
+    <div class="app-context-banner d-flex flex-wrap gap-3 align-items-center">
+        <span><strong>Parque:</strong> @tarea.ParqueSolarNombre</span>
+        <span><strong>Nodo:</strong> @tarea.NodoCodigo</span>
+        <span><strong>Panel:</strong> @tarea.PanelCodigoSerie</span>
+        <span><strong>Estado:</strong> <partial name="_EstadoBadge" model="tarea.Estado" /></span>
+    </div>
+
     @if (string.Equals(tarea.Estado, "Completada", StringComparison.OrdinalIgnoreCase) || string.Equals(tarea.Estado, "Cancelada", StringComparison.OrdinalIgnoreCase))
     {
-        <div class="alert alert-warning">No se puede editar una tarea en estado Completada o Cancelada.</div>
+        <div class="alert alert-warning" role="alert">No se puede editar una tarea en estado Completada o Cancelada.</div>
     }
 }
 
-<form asp-action="Edit" method="post">
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-    <input type="hidden" asp-for="Id" />
-    <div class="form-group">
-        <label asp-for="TipoTarea"></label>
-        <input asp-for="TipoTarea" class="form-control" />
-        <span asp-validation-for="TipoTarea" class="text-danger"></span>
+<div class="card app-form-card">
+    <div class="card-body">
+        <form asp-action="Edit" method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+            <input type="hidden" asp-for="Id" />
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="TipoTarea" class="form-label"></label>
+                    <input asp-for="TipoTarea" class="form-control" />
+                    <span asp-validation-for="TipoTarea" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="AsignadoA" class="form-label"></label>
+                    <input asp-for="AsignadoA" class="form-control" />
+                    <span asp-validation-for="AsignadoA" class="text-danger"></span>
+                </div>
+                <div class="col-12">
+                    <label asp-for="Descripcion" class="form-label"></label>
+                    <textarea asp-for="Descripcion" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="Descripcion" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="FechaVencimiento" class="form-label"></label>
+                    <input asp-for="FechaVencimiento" type="date" class="form-control" />
+                    <span asp-validation-for="FechaVencimiento" class="text-danger"></span>
+                </div>
+                <div class="col-12">
+                    <label asp-for="Observaciones" class="form-label"></label>
+                    <textarea asp-for="Observaciones" class="form-control" rows="2"></textarea>
+                    <span asp-validation-for="Observaciones" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="app-action-bar">
+                <button type="submit" class="btn btn-primary">Guardar</button>
+                <a class="btn btn-secondary" asp-action="Details" asp-route-id="@Model.Id">Cancelar</a>
+            </div>
+        </form>
     </div>
-    <div class="form-group">
-        <label asp-for="Descripcion"></label>
-        <textarea asp-for="Descripcion" class="form-control"></textarea>
-        <span asp-validation-for="Descripcion" class="text-danger"></span>
-    </div>
-    <div class="form-group">
-        <label asp-for="AsignadoA"></label>
-        <input asp-for="AsignadoA" class="form-control" />
-        <span asp-validation-for="AsignadoA" class="text-danger"></span>
-    </div>
-    <div class="form-group">
-        <label asp-for="FechaVencimiento"></label>
-        <input asp-for="FechaVencimiento" type="date" class="form-control" />
-        <span asp-validation-for="FechaVencimiento" class="text-danger"></span>
-    </div>
-    <div class="form-group">
-        <label asp-for="Observaciones"></label>
-        <textarea asp-for="Observaciones" class="form-control"></textarea>
-        <span asp-validation-for="Observaciones" class="text-danger"></span>
-    </div>
-    <button type="submit" class="btn btn-primary">Guardar</button>
-    <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">Volver</a>
-</form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

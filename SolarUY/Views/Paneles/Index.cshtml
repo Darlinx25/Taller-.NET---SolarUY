@@ -1,66 +1,88 @@
 @model IReadOnlyList<SolarUY.Application.Dtos.PanelDto>
 @{
-    var nodo = ViewBag.Nodo as SolarUY.Application.Dtos.NodoDetalleDto;
+    var nodo = ViewBag.Nodo as SolarUY.Application.Dtos.NodoDto;
     ViewData["Title"] = "Paneles";
+    var returnUrlNodo = nodo is null ? null : Url.Action("Details", "Nodos", new { id = nodo.Id });
+    var returnUrlListado = Url.Action("Index", "Paneles", new { nodoId = nodo?.Id });
+    var migas = new List<BreadcrumbItem>
+    {
+        new() { Texto = "Inicio", Url = Url.Action("Index", "Home") },
+        new() { Texto = "Parques solares", Url = Url.Action("Index", "ParquesSolares") },
+        new() { Texto = nodo?.Codigo ?? "Nodo", Url = returnUrlNodo },
+        new() { Texto = "Paneles" }
+    };
+    var emptyState = new EmptyStateViewModel
+    {
+        Mensaje = "Este nodo todavía no tiene paneles registrados.",
+        TextoAccion = "Agregar panel",
+        UrlAccion = Url.Action("Create", "Paneles", new { nodoId = nodo?.Id, returnUrl = returnUrlNodo })
+    };
 }
 
-<h1 class="h3 mb-3">Paneles - @nodo?.Codigo</h1>
+<partial name="_Breadcrumbs" model="migas" />
 
-@if (nodo is not null)
-{
-    <p class="text-muted">Parque solar: @nodo.ParqueSolarNombre</p>
-}
-
-@if (TempData["Mensaje"] is string mensaje)
-{
-    <div class="alert alert-success" role="alert">@mensaje</div>
-}
-
-@if (TempData["Error"] is string error)
-{
-    <div class="alert alert-danger" role="alert">@error</div>
-}
-
-<div class="mb-3">
-    <a class="btn btn-primary" asp-action="Create" asp-route-nodoId="@nodo?.Id">Nuevo panel</a>
-    <a class="btn btn-secondary" asp-controller="Nodos" asp-action="Details" asp-route-id="@nodo?.Id">Volver al nodo</a>
+<div class="app-page-header">
+    <div>
+        <h1 class="h3">Paneles</h1>
+        <p class="app-page-subtitle">Nodo @nodo?.Codigo</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-primary"
+           asp-action="Create"
+           asp-route-nodoId="@nodo?.Id"
+           asp-route-returnUrl="@returnUrlNodo">Agregar panel</a>
+        <a class="btn btn-secondary" asp-controller="Nodos" asp-action="Details" asp-route-id="@nodo?.Id">Volver al nodo</a>
+    </div>
 </div>
 
-@if (Model.Count == 0)
+@if (!Model.Any())
 {
-    <div class="alert alert-info" role="alert">
-        No hay paneles registrados para este nodo.
-    </div>
+    <partial name="_EmptyState" model="emptyState" />
 }
 else
 {
-    <table class="table table-striped align-middle">
-        <thead>
-            <tr>
-                <th scope="col">Código/Serie</th>
-                <th scope="col">Marca</th>
-                <th scope="col">Modelo</th>
-                <th scope="col">Potencia (Wp)</th>
-                <th scope="col">Fecha de alta</th>
-                <th scope="col">Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var panel in Model)
-            {
-                <tr>
-                    <td>@panel.CodigoSerie</td>
-                    <td>@panel.Marca</td>
-                    <td>@panel.Modelo</td>
-                    <td>@panel.PotenciaWp.ToString("0.00")</td>
-                    <td>@panel.FechaCreacion.ToString("yyyy-MM-dd HH:mm")</td>
-                    <td>
-                        <a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@panel.Id">Detalle</a>
-                        <a class="btn btn-sm btn-outline-primary" asp-action="Edit" asp-route-id="@panel.Id">Editar</a>
-                        <a class="btn btn-sm btn-outline-danger" asp-action="Delete" asp-route-id="@panel.Id">Eliminar</a>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">Código/Serie</th>
+                        <th scope="col">Marca</th>
+                        <th scope="col">Modelo</th>
+                        <th scope="col" class="text-end">Potencia (Wp)</th>
+                        <th scope="col">Instalación</th>
+                        <th scope="col">Alta</th>
+                        <th scope="col" class="text-end">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@item.CodigoSerie</td>
+                            <td>@item.Marca</td>
+                            <td>@item.Modelo</td>
+                            <td class="text-end">@item.PotenciaWp.ToString("0.00")</td>
+                            <td>@(item.FechaInstalacion?.ToString("yyyy-MM-dd") ?? "-")</td>
+                            <td>@item.FechaCreacion.ToString("yyyy-MM-dd")</td>
+                            <td>
+                                <div class="app-table-actions">
+                                    <a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@item.Id">Detalle</a>
+                                    <a class="btn btn-sm btn-outline-primary"
+                                       asp-action="Edit" asp-route-id="@item.Id"
+                                       asp-route-returnUrl="@returnUrlListado">Editar</a>
+                                    <a class="btn btn-sm btn-outline-danger"
+                                       asp-action="Delete" asp-route-id="@item.Id"
+                                       asp-route-returnUrl="@returnUrlListado">Eliminar</a>
+                                    <a class="btn btn-sm btn-outline-warning"
+                                       asp-controller="TareasMantenimiento" asp-action="Index"
+                                       asp-route-panelId="@item.Id">Tareas</a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
 }

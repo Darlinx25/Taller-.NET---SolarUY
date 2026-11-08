@@ -1,16 +1,25 @@
 @model SolarUY.Application.Dtos.DashboardTelemetriaViewDto
 @{
     ViewData["Title"] = "Dashboard de telemetría en vivo";
+    var migas = new List<BreadcrumbItem>
+    {
+        new() { Texto = "Inicio", Url = Url.Action("Index", "Home") },
+        new() { Texto = "Dashboard" }
+    };
 }
 
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1 class="h3">Dashboard de telemetría en vivo</h1>
-    </div>
+<partial name="_Breadcrumbs" model="migas" />
 
-    <div id="dashboardLive">
-        <partial name="_DashboardContenido" model="Model" />
+<div class="app-page-header">
+    <div>
+        <h1 class="h3">Dashboard de telemetría en vivo</h1>
+        <p class="app-page-subtitle">Los datos se actualizan automáticamente al recibir nueva telemetría.</p>
     </div>
+    <span class="badge text-bg-success align-self-start">En vivo</span>
+</div>
+
+<div id="dashboardLive">
+    <partial name="_DashboardContenido" model="Model" />
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"

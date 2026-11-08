@@ -1,4 +1,25 @@
-﻿// Please see documentation at https://learn.microsoft.com/aspnet/core/client-side/bundling-and-minification
-// for details on configuring this project to bundle and minify static web assets.
+﻿(function () {
+    function cerrarAlertasAutomaticas() {
+        if (typeof bootstrap === 'undefined') {
+            return;
+        }
 
-// Write your JavaScript code.
+        document.querySelectorAll('[data-auto-dismiss="true"]').forEach(function (elemento) {
+            window.setTimeout(function () {
+                bootstrap.Alert.getOrCreateInstance(elemento).close();
+            }, 5000);
+        });
+    }
+
+    function enfocarPrimerError() {
+        const primerError = document.querySelector('.input-validation-error');
+        if (primerError && typeof primerError.focus === 'function') {
+            primerError.focus();
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        cerrarAlertasAutomaticas();
+        enfocarPrimerError();
+    });
+})();

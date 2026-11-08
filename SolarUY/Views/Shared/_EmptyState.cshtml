@@ -1,0 +1,9 @@
+@model EmptyStateViewModel
+
+<div class="app-empty-state text-center p-5 border rounded-3 bg-light">
+    <p class="mb-3 text-muted">@Model.Mensaje</p>
+    @if (!string.IsNullOrWhiteSpace(Model.TextoAccion) && !string.IsNullOrWhiteSpace(Model.UrlAccion))
+    {
+        <a class="btn btn-primary" href="@Model.UrlAccion">@Model.TextoAccion</a>
+    }
+</div>

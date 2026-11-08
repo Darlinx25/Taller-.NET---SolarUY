@@ -1,0 +1,16 @@
+@model string
+
+@{
+    var estado = string.IsNullOrWhiteSpace(Model) ? "Sin estado" : Model;
+    var clase = estado.Trim().ToLowerInvariant() switch
+    {
+        "activo" or "operativo" or "completada" => "text-bg-success",
+        "inactivo" or "cancelada" or "sin telemetria" or "sin telemetría" => "text-bg-secondary",
+        "enfalla" or "en falla" or "fallo" => "text-bg-danger",
+        "enproceso" or "en proceso" => "text-bg-info",
+        "pendiente" => "text-bg-warning",
+        _ => "text-bg-secondary"
+    };
+}
+
+<span class="badge @clase">@estado</span>

@@ -1,0 +1,27 @@
+@model IReadOnlyList<BreadcrumbItem>
+
+@if (Model is not null && Model.Count > 0)
+{
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb app-breadcrumb">
+            @for (var i = 0; i < Model.Count; i++)
+            {
+                var item = Model[i];
+                var esUltimo = i == Model.Count - 1;
+
+                if (esUltimo)
+                {
+                    <li class="breadcrumb-item active" aria-current="page">@item.Texto</li>
+                }
+                else if (!string.IsNullOrWhiteSpace(item.Url))
+                {
+                    <li class="breadcrumb-item"><a href="@item.Url">@item.Texto</a></li>
+                }
+                else
+                {
+                    <li class="breadcrumb-item">@item.Texto</li>
+                }
+            }
+        </ol>
+    </nav>
+}

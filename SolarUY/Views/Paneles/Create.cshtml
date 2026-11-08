@@ -1,60 +1,81 @@
 @model SolarUY.Application.Dtos.CrearPanelDto
 @{
-    var nodo = ViewBag.Nodo as SolarUY.Application.Dtos.NodoDetalleDto;
-    ViewData["Title"] = "Nuevo panel";
+    var nodo = ViewBag.Nodo as SolarUY.Application.Dtos.NodoDto;
+    var returnUrl = ViewBag.ReturnUrl as string;
+    ViewData["Title"] = "Agregar panel";
+    var urlCancelar = string.IsNullOrWhiteSpace(returnUrl)
+        ? Url.Action("Details", "Nodos", new { id = Model.NodoId })
+        : returnUrl;
+    var migas = new List<BreadcrumbItem>
+    {
+        new() { Texto = "Inicio", Url = Url.Action("Index", "Home") },
+        new() { Texto = "Parques solares", Url = Url.Action("Index", "ParquesSolares") },
+        new() { Texto = nodo?.Codigo ?? "Nodo", Url = Url.Action("Details", "Nodos", new { id = Model.NodoId }) },
+        new() { Texto = "Agregar panel" }
+    };
 }
 
-<h1 class="h3 mb-4">Nuevo panel - @nodo?.Codigo</h1>
+<partial name="_Breadcrumbs" model="migas" />
 
-@if (nodo is not null)
-{
-    <p class="text-muted">Parque solar: @nodo.ParqueSolarNombre</p>
-}
-
-<form asp-action="Create" method="post">
-    <input type="hidden" asp-for="NodoId" />
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-
-    <div class="mb-3">
-        <label asp-for="CodigoSerie" class="form-label"></label>
-        <input asp-for="CodigoSerie" class="form-control" />
-        <span asp-validation-for="CodigoSerie" class="text-danger"></span>
+<div class="app-page-header">
+    <div>
+        <h1 class="h3">Agregar panel</h1>
+        <p class="app-page-subtitle">Nodo @nodo?.Codigo</p>
     </div>
+</div>
 
-    <div class="mb-3">
-        <label asp-for="Marca" class="form-label"></label>
-        <input asp-for="Marca" class="form-control" />
-        <span asp-validation-for="Marca" class="text-danger"></span>
+<div class="card app-form-card">
+    <div class="card-body">
+        <form asp-action="Create" method="post">
+            <input type="hidden" asp-for="NodoId" />
+            <input type="hidden" name="returnUrl" value="@returnUrl" />
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+            <h2 class="h5">Datos del panel</h2>
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label asp-for="CodigoSerie" class="form-label"></label>
+                    <input asp-for="CodigoSerie" class="form-control" placeholder="Ej. PAN-0001" />
+                    <span asp-validation-for="CodigoSerie" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="PotenciaWp" class="form-label"></label>
+                    <input asp-for="PotenciaWp" class="form-control" placeholder="Ej. 550.00" />
+                    <span asp-validation-for="PotenciaWp" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Marca" class="form-label"></label>
+                    <input asp-for="Marca" class="form-control" placeholder="Ej. Jinko" />
+                    <span asp-validation-for="Marca" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Modelo" class="form-label"></label>
+                    <input asp-for="Modelo" class="form-control" placeholder="Ej. Tiger Neo" />
+                    <span asp-validation-for="Modelo" class="text-danger"></span>
+                </div>
+            </div>
+
+            <h2 class="h5">Instalación y observaciones</h2>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="FechaInstalacion" class="form-label"></label>
+                    <input asp-for="FechaInstalacion" class="form-control" type="date" />
+                    <span asp-validation-for="FechaInstalacion" class="text-danger"></span>
+                </div>
+                <div class="col-12">
+                    <label asp-for="Observaciones" class="form-label"></label>
+                    <textarea asp-for="Observaciones" class="form-control" rows="2" placeholder="Observaciones opcionales"></textarea>
+                    <span asp-validation-for="Observaciones" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="app-action-bar">
+                <button type="submit" class="btn btn-primary">Guardar</button>
+                <a class="btn btn-secondary" href="@urlCancelar">Cancelar</a>
+            </div>
+        </form>
     </div>
-
-    <div class="mb-3">
-        <label asp-for="Modelo" class="form-label"></label>
-        <input asp-for="Modelo" class="form-control" />
-        <span asp-validation-for="Modelo" class="text-danger"></span>
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="PotenciaWp" class="form-label"></label>
-        <input asp-for="PotenciaWp" class="form-control" step="0.01" />
-        <span asp-validation-for="PotenciaWp" class="text-danger"></span>
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="FechaInstalacion" class="form-label"></label>
-        <input asp-for="FechaInstalacion" class="form-control" />
-        <span asp-validation-for="FechaInstalacion" class="text-danger"></span>
-        <div class="form-text">Opcional.</div>
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="Observaciones" class="form-label"></label>
-        <textarea asp-for="Observaciones" class="form-control"></textarea>
-        <span asp-validation-for="Observaciones" class="text-danger"></span>
-    </div>
-
-    <button type="submit" class="btn btn-primary">Guardar</button>
-    <a class="btn btn-secondary" asp-action="Index" asp-route-nodoId="@Model.NodoId">Cancelar</a>
-</form>
+</div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

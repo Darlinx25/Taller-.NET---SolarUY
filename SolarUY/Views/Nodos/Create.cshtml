@@ -1,58 +1,87 @@
 @model SolarUY.Application.Dtos.CrearNodoInversorDto
 @{
     var parque = ViewBag.Parque as SolarUY.Application.Dtos.ParqueSolarDto;
+    var returnUrl = ViewBag.ReturnUrl as string;
     ViewData["Title"] = "Nuevo nodo e inversor";
+    var urlCancelar = string.IsNullOrWhiteSpace(returnUrl)
+        ? Url.Action("Index", "Nodos", new { parqueId = Model.ParqueSolarId })
+        : returnUrl;
+    var migas = new List<BreadcrumbItem>
+    {
+        new() { Texto = "Inicio", Url = Url.Action("Index", "Home") },
+        new() { Texto = "Parques solares", Url = Url.Action("Index", "ParquesSolares") },
+        new() { Texto = parque?.Nombre ?? "Parque solar", Url = Url.Action("Details", "ParquesSolares", new { id = Model.ParqueSolarId }) },
+        new() { Texto = "Nuevo nodo" }
+    };
 }
 
-<h1 class="h3 mb-4">Nuevo nodo e inversor - @parque?.Nombre</h1>
+<partial name="_Breadcrumbs" model="migas" />
 
-<form asp-action="Create" method="post">
-    <input type="hidden" asp-for="ParqueSolarId" />
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+<div class="app-page-header">
+    <div>
+        <h1 class="h3">Nuevo nodo e inversor</h1>
+        <p class="app-page-subtitle">@parque?.Nombre</p>
+    </div>
+</div>
 
-    <h2 class="h5 mt-3">Datos del nodo</h2>
-    <div class="mb-3">
-        <label asp-for="Codigo" class="form-label"></label>
-        <input asp-for="Codigo" class="form-control" />
-        <span asp-validation-for="Codigo" class="text-danger"></span>
-    </div>
-    <div class="mb-3">
-        <label asp-for="Estado" class="form-label"></label>
-        <input asp-for="Estado" class="form-control" />
-        <span asp-validation-for="Estado" class="text-danger"></span>
-    </div>
-    <div class="mb-3">
-        <label asp-for="Descripcion" class="form-label"></label>
-        <textarea asp-for="Descripcion" class="form-control"></textarea>
-        <span asp-validation-for="Descripcion" class="text-danger"></span>
-    </div>
+<div class="card app-form-card">
+    <div class="card-body">
+        <form asp-action="Create" method="post">
+            <input type="hidden" asp-for="ParqueSolarId" />
+            <input type="hidden" name="returnUrl" value="@returnUrl" />
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
-    <h2 class="h5 mt-4">Datos del inversor</h2>
-    <div class="mb-3">
-        <label asp-for="InversorMarca" class="form-label"></label>
-        <input asp-for="InversorMarca" class="form-control" />
-        <span asp-validation-for="InversorMarca" class="text-danger"></span>
-    </div>
-    <div class="mb-3">
-        <label asp-for="InversorModelo" class="form-label"></label>
-        <input asp-for="InversorModelo" class="form-control" />
-        <span asp-validation-for="InversorModelo" class="text-danger"></span>
-    </div>
-    <div class="mb-3">
-        <label asp-for="InversorNumeroSerie" class="form-label"></label>
-        <input asp-for="InversorNumeroSerie" class="form-control" />
-        <span asp-validation-for="InversorNumeroSerie" class="text-danger"></span>
-    </div>
-    <div class="mb-3">
-        <label asp-for="InversorPotenciaNominalkW" class="form-label"></label>
-        <input asp-for="InversorPotenciaNominalkW" class="form-control" />
-        <span asp-validation-for="InversorPotenciaNominalkW" class="text-danger"></span>
-    </div>
+            <h2 class="h5">Datos del nodo</h2>
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label asp-for="Codigo" class="form-label"></label>
+                    <input asp-for="Codigo" class="form-control" placeholder="Ej. NODO-01" />
+                    <span asp-validation-for="Codigo" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Estado" class="form-label"></label>
+                    <input asp-for="Estado" class="form-control" placeholder="Ej. Activo" />
+                    <span asp-validation-for="Estado" class="text-danger"></span>
+                </div>
+                <div class="col-12">
+                    <label asp-for="Descripcion" class="form-label"></label>
+                    <textarea asp-for="Descripcion" class="form-control" rows="2" placeholder="Descripción opcional del nodo"></textarea>
+                    <span asp-validation-for="Descripcion" class="text-danger"></span>
+                </div>
+            </div>
 
-    <button type="submit" class="btn btn-primary">Guardar</button>
-    <a class="btn btn-secondary" asp-action="Index" asp-route-parqueId="@Model.ParqueSolarId">Cancelar</a>
-</form>
+            <h2 class="h5">Datos del inversor</h2>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="InversorMarca" class="form-label"></label>
+                    <input asp-for="InversorMarca" class="form-control" placeholder="Ej. Huawei" />
+                    <span asp-validation-for="InversorMarca" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="InversorModelo" class="form-label"></label>
+                    <input asp-for="InversorModelo" class="form-control" placeholder="Ej. SUN2000" />
+                    <span asp-validation-for="InversorModelo" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="InversorNumeroSerie" class="form-label"></label>
+                    <input asp-for="InversorNumeroSerie" class="form-control" placeholder="Número de serie" />
+                    <span asp-validation-for="InversorNumeroSerie" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="InversorPotenciaNominalkW" class="form-label"></label>
+                    <input asp-for="InversorPotenciaNominalkW" class="form-control" placeholder="Ej. 100.00" />
+                    <span asp-validation-for="InversorPotenciaNominalkW" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="app-action-bar">
+                <button type="submit" class="btn btn-primary">Guardar</button>
+                <a class="btn btn-secondary" href="@urlCancelar">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
 
 @section Scripts {
-    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <partial name="_ValidationScriptsPartial" />
 }

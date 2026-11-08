@@ -1,4 +1,16 @@
-﻿<!DOCTYPE html>
+﻿@using System
+@{
+    var controladorActual = ViewContext.RouteData.Values["controller"]?.ToString();
+    var esHome = string.Equals(controladorActual, "Home", StringComparison.OrdinalIgnoreCase);
+    var esDashboard = string.Equals(controladorActual, "Dashboard", StringComparison.OrdinalIgnoreCase);
+    var esAlertas = string.Equals(controladorActual, "Alertas", StringComparison.OrdinalIgnoreCase);
+    var esParques = string.Equals(controladorActual, "ParquesSolares", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(controladorActual, "Nodos", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(controladorActual, "Paneles", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(controladorActual, "TareasMantenimiento", StringComparison.OrdinalIgnoreCase);
+    var esHistorico = string.Equals(controladorActual, "Historico", StringComparison.OrdinalIgnoreCase);
+}
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="utf-8"/>
@@ -9,54 +21,67 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true"/>
     <link rel="stylesheet" href="~/SolarUY.styles.css" asp-append-version="true"/>
 </head>
-<body>
+<body class="d-flex flex-column min-vh-100">
 <header>
-    <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-        <div class="container-fluid">
-            <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">SolarUY</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                    aria-expanded="false" aria-label="Toggle navigation">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+        <div class="container-xl">
+            <a class="navbar-brand fw-semibold" asp-area="" asp-controller="Home" asp-action="Index">SolarUY</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse"
+                    aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+            <div class="navbar-collapse collapse d-lg-inline-flex justify-content-between">
                 <ul class="navbar-nav flex-grow-1">
                     <li class="nav-item">
-                        <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Inicio</a>
+                        <a class="nav-link @(esHome ? "active" : "")" aria-current="@(esHome ? "page" : null)"
+                           asp-area="" asp-controller="Home" asp-action="Index">Inicio</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-dark" asp-area="" asp-controller="Dashboard" asp-action="Index">Dashboard</a>
+                        <a class="nav-link @(esDashboard ? "active" : "")" aria-current="@(esDashboard ? "page" : null)"
+                           asp-area="" asp-controller="Dashboard" asp-action="Index">Dashboard</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-dark" asp-area="" asp-controller="Alertas" asp-action="Index">Alertas
-                            <span id="alertasContador" class="badge bg-danger d-none" data-url="@Url.Action("CantidadActivas", "Alertas")">0</span>
+                        <a class="nav-link @(esAlertas ? "active" : "")" aria-current="@(esAlertas ? "page" : null)"
+                           asp-area="" asp-controller="Alertas" asp-action="Index">
+                            Alertas
+                            <span id="alertasContador" class="badge bg-danger d-none"
+                                  data-url="@Url.Action("CantidadActivas", "Alertas")">0</span>
                         </a>
                     </li>
+                    @if (User.IsInRole("Administrador"))
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link @(esParques ? "active" : "")" aria-current="@(esParques ? "page" : null)"
+                               asp-area="" asp-controller="ParquesSolares" asp-action="Index">Parques Solares</a>
+                        </li>
+                    }
                     @if (User.Identity?.IsAuthenticated == true)
                     {
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="ParquesSolares" asp-action="Index">Parques Solares</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Historico" asp-action="Index">Histórico</a>
+                            <a class="nav-link @(esHistorico ? "active" : "")" aria-current="@(esHistorico ? "page" : null)"
+                               asp-area="" asp-controller="Historico" asp-action="Index">Histórico</a>
                         </li>
                     }
                 </ul>
-                <ul class="navbar-nav">
+                <ul class="navbar-nav align-items-lg-center">
                     @if (User.Identity?.IsAuthenticated == true)
                     {
-                        <li class="nav-item">
-                            <span class="navbar-text text-dark me-3">@User.Identity.Name</span>
+                        <li class="nav-item me-lg-3">
+                            <span class="navbar-text">
+                                @User.Identity.Name
+                                <span class="badge text-bg-light ms-1">@(User.IsInRole("Administrador") ? "Administrador" : "Operador")</span>
+                            </span>
                         </li>
                         <li class="nav-item">
                             <form asp-area="" asp-controller="Auth" asp-action="Logout" method="post" class="d-inline">
-                                <button type="submit" class="nav-link btn btn-link text-dark">Salir</button>
+                                <button type="submit" class="nav-link btn btn-link">Salir</button>
                             </form>
                         </li>
                     }
                     else
                     {
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Auth" asp-action="Login">Iniciar sesión</a>
+                            <a class="nav-link" asp-area="" asp-controller="Auth" asp-action="Login">Iniciar sesión</a>
                         </li>
                     }
                 </ul>
@@ -64,14 +89,15 @@
         </div>
     </nav>
 </header>
-<div class="container">
+<div class="container-xl py-3 flex-grow-1">
+    <partial name="_TempDataAlertas"/>
     <main role="main" class="pb-3">
         @RenderBody()
     </main>
 </div>
 
-<footer class="border-top footer text-muted">
-    <div class="container">
+<footer class="app-footer border-top text-muted py-3">
+    <div class="container-xl">
         &copy; 2026 - SolarUY
     </div>
 </footer>

@@ -1,11 +1,23 @@
 @{
     ViewData["Title"] = "Acceso denegado";
+    var migas = new List<BreadcrumbItem>
+    {
+        new() { Texto = "Inicio", Url = Url.Action("Index", "Home") },
+        new() { Texto = "Acceso denegado" }
+    };
 }
 
-<h1 class="h3 mb-3">Acceso denegado</h1>
+<partial name="_Breadcrumbs" model="migas" />
+
+<div class="app-page-header">
+    <div>
+        <h1 class="h3">Acceso denegado</h1>
+        <p class="app-page-subtitle">No tenés permisos para realizar esta operación.</p>
+    </div>
+</div>
 
 <div class="alert alert-warning" role="alert">
-    No tenés permisos para realizar esta operación. Se requiere el rol <strong>Administrador</strong>.
+    Se requiere el rol <strong>Administrador</strong> para acceder a esta sección.
 </div>
 
 <a class="btn btn-secondary" asp-controller="Home" asp-action="Index">Volver al inicio</a>

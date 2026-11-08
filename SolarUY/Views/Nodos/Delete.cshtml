@@ -1,22 +1,50 @@
 @model SolarUY.Application.Dtos.NodoDetalleDto
 @{
+    var returnUrl = ViewBag.ReturnUrl as string;
     ViewData["Title"] = "Eliminar nodo";
+    var urlCancelar = string.IsNullOrWhiteSpace(returnUrl)
+        ? Url.Action("Index", "Nodos", new { parqueId = Model.ParqueSolarId })
+        : returnUrl;
+    var migas = new List<BreadcrumbItem>
+    {
+        new() { Texto = "Inicio", Url = Url.Action("Index", "Home") },
+        new() { Texto = "Parques solares", Url = Url.Action("Index", "ParquesSolares") },
+        new() { Texto = Model.ParqueSolarNombre ?? "Parque solar", Url = Url.Action("Details", "ParquesSolares", new { id = Model.ParqueSolarId }) },
+        new() { Texto = Model.Codigo }
+    };
 }
 
-<h1 class="h3 mb-4">Eliminar nodo</h1>
-<p class="text-danger">¿Está seguro de que desea eliminar este nodo y su inversor asociado? Esta acción es definitiva.</p>
+<partial name="_Breadcrumbs" model="migas" />
 
-<dl class="row">
-    <dt class="col-sm-3">Código</dt>
-    <dd class="col-sm-9">@Model.Codigo</dd>
-    <dt class="col-sm-3">Parque solar</dt>
-    <dd class="col-sm-9">@Model.ParqueSolarNombre</dd>
-    <dt class="col-sm-3">Inversor</dt>
-    <dd class="col-sm-9">@($"{Model.Inversor?.Marca} {Model.Inversor?.Modelo} ({Model.Inversor?.NumeroSerie})")</dd>
-</dl>
+<div class="app-page-header">
+    <div>
+        <h1 class="h3">Eliminar nodo</h1>
+        <p class="app-page-subtitle">Revisá la información antes de confirmar la baja.</p>
+    </div>
+</div>
 
-<form asp-action="Delete" method="post">
-    <input type="hidden" asp-for="Id" />
-    <button type="submit" class="btn btn-danger">Eliminar</button>
-    <a class="btn btn-secondary" asp-action="Index" asp-route-parqueId="@Model.ParqueSolarId">Cancelar</a>
-</form>
+<div class="card app-form-card border-danger">
+    <div class="card-body">
+        <div class="alert alert-warning" role="alert">
+            ¿Está seguro de que desea eliminar este nodo y su inversor asociado? Esta acción es definitiva.
+        </div>
+
+        <dl class="row mb-0">
+            <dt class="col-sm-3">Código</dt>
+            <dd class="col-sm-9">@Model.Codigo</dd>
+            <dt class="col-sm-3">Parque solar</dt>
+            <dd class="col-sm-9">@Model.ParqueSolarNombre</dd>
+            <dt class="col-sm-3">Inversor</dt>
+            <dd class="col-sm-9 mb-0">@(Model.Inversor is null ? "-" : $"{Model.Inversor.Marca} {Model.Inversor.Modelo} ({Model.Inversor.NumeroSerie})")</dd>
+        </dl>
+
+        <form asp-action="Delete" method="post">
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" name="returnUrl" value="@returnUrl" />
+            <div class="app-action-bar">
+                <button type="submit" class="btn btn-danger">Eliminar</button>
+                <a class="btn btn-secondary" href="@urlCancelar">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>

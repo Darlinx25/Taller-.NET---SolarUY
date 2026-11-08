@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -6,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using SolarUY.Application.Dtos;
 using SolarUY.Application.Services;
 using SolarUY.Domain.Exceptions;
+using SolarUY.Models;
 
 namespace SolarUY.Controllers;
 
@@ -17,15 +19,26 @@ namespace SolarUY.Controllers;
 public class ParquesSolaresController : Controller
 {
     private readonly IParqueSolarService _parqueSolarService;
+    private readonly INodoService _nodoService;
+    private readonly IPanelService _panelService;
 
     /// <summary>
     /// Crea el controlador de parques solares.
     /// </summary>
     /// <param name="parqueSolarService">Servicio de casos de uso de parques solares.</param>
-    public ParquesSolaresController(IParqueSolarService parqueSolarService)
+    /// <param name="nodoService">Servicio de casos de uso de nodos.</param>
+    /// <param name="panelService">Servicio de casos de uso de paneles.</param>
+    public ParquesSolaresController(
+        IParqueSolarService parqueSolarService,
+        INodoService nodoService,
+        IPanelService panelService)
     {
         _parqueSolarService = parqueSolarService
             ?? throw new ArgumentNullException(nameof(parqueSolarService));
+        _nodoService = nodoService
+            ?? throw new ArgumentNullException(nameof(nodoService));
+        _panelService = panelService
+            ?? throw new ArgumentNullException(nameof(panelService));
     }
 
     /// <summary>
@@ -91,8 +104,31 @@ public class ParquesSolaresController : Controller
     public async Task<IActionResult> Details(Guid id, CancellationToken cancellationToken)
     {
         var parque = await _parqueSolarService.ObtenerParqueAsync(id, cancellationToken);
+        if (parque is null)
+        {
+            return NotFound();
+        }
 
-        return parque is null ? NotFound() : View(parque);
+        var nodos = await _nodoService.ObtenerNodosPorParqueAsync(id, cancellationToken);
+        var nodosConPaneles = new List<NodoConPanelesViewModel>(nodos.Count);
+
+        foreach (var nodo in nodos)
+        {
+            var paneles = await _panelService.ObtenerPanelesPorNodoAsync(nodo.Id, cancellationToken);
+            nodosConPaneles.Add(new NodoConPanelesViewModel
+            {
+                Nodo = nodo,
+                Paneles = paneles,
+            });
+        }
+
+        var modelo = new ParqueSolarDetalleViewModel
+        {
+            Parque = parque,
+            Nodos = nodosConPaneles,
+        };
+
+        return View(modelo);
     }
 
     /// <summary>

@@ -1,55 +1,83 @@
 @model SolarUY.Application.Dtos.TareaMantenimientoDetalleDto
 @{
     ViewData["Title"] = "Detalle de tarea";
+    var cerrada = string.Equals(Model.Estado, "Completada", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(Model.Estado, "Cancelada", StringComparison.OrdinalIgnoreCase);
+
+    var migas = new List<BreadcrumbItem>
+    {
+        new() { Texto = "Inicio", Url = Url.Action("Index", "Home") },
+        new() { Texto = "Parques solares", Url = Url.Action("Index", "ParquesSolares") },
+        new() { Texto = Model.ParqueSolarNombre ?? "Parque solar", Url = Model.ParqueSolarId.HasValue ? Url.Action("Details", "ParquesSolares", new { id = Model.ParqueSolarId }) : null },
+        new() { Texto = Model.NodoCodigo ?? "Nodo", Url = Model.NodoId.HasValue ? Url.Action("Details", "Nodos", new { id = Model.NodoId }) : null },
+        new() { Texto = Model.PanelCodigoSerie ?? "Panel", Url = Url.Action("Details", "Paneles", new { id = Model.PanelId }) },
+        new() { Texto = "Tareas", Url = Url.Action("Index", "TareasMantenimiento", new { panelId = Model.PanelId }) },
+        new() { Texto = "Detalle" }
+    };
 }
 
-<h1>Detalle de tarea de mantenimiento</h1>
+<partial name="_Breadcrumbs" model="migas" />
 
-@if (TempData["Mensaje"] is string mensaje)
-{
-    <div class="alert alert-success" role="alert">@mensaje</div>
-}
-
-@if (TempData["Error"] is string error)
-{
-    <div class="alert alert-danger" role="alert">@error</div>
-}
-
-<div class="alert alert-info">
-    <strong>Parque Solar:</strong> @Model.ParqueSolarNombre &rarr; <strong>Nodo:</strong> @Model.NodoCodigo &rarr; <strong>Panel:</strong> @Model.PanelCodigoSerie
+<div class="app-page-header">
+    <div>
+        <h1 class="h3">
+            Tarea de mantenimiento
+            <partial name="_EstadoBadge" model="Model.Estado" />
+        </h1>
+        <p class="app-page-subtitle">@Model.TipoTarea</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        @if (!cerrada)
+        {
+            <a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.Id">Editar</a>
+            <a class="btn btn-warning" asp-action="CambiarEstado" asp-route-id="@Model.Id">Cambiar estado</a>
+        }
+        <a class="btn btn-danger" asp-action="Delete" asp-route-id="@Model.Id">Eliminar</a>
+        <a class="btn btn-secondary" asp-action="Index" asp-route-panelId="@Model.PanelId">Volver al listado</a>
+    </div>
 </div>
 
-<dl class="row">
-    <dt class="col-sm-3">Tipo de tarea</dt>
-    <dd class="col-sm-9">@Model.TipoTarea</dd>
-    <dt class="col-sm-3">Descripción</dt>
-    <dd class="col-sm-9">@Model.Descripcion</dd>
-    <dt class="col-sm-3">Asignado a</dt>
-    <dd class="col-sm-9">@Model.AsignadoA</dd>
-    <dt class="col-sm-3">Estado</dt>
-    <dd class="col-sm-9">@Model.Estado</dd>
-    <dt class="col-sm-3">Fecha de asignación</dt>
-    <dd class="col-sm-9">@Model.FechaAsignacion.ToString("yyyy-MM-dd")</dd>
-    <dt class="col-sm-3">Fecha de vencimiento</dt>
-    <dd class="col-sm-9">@Model.FechaVencimiento.ToString("yyyy-MM-dd")</dd>
-    <dt class="col-sm-3">Fecha de inicio</dt>
-    <dd class="col-sm-9">@(Model.FechaInicio == default ? "-" : Model.FechaInicio.ToString("yyyy-MM-dd"))</dd>
-    <dt class="col-sm-3">Fecha de finalización</dt>
-    <dd class="col-sm-9">@(Model.FechaFinalizacion == default ? "-" : Model.FechaFinalizacion.ToString("yyyy-MM-dd"))</dd>
-    <dt class="col-sm-3">Quién asigna</dt>
-    <dd class="col-sm-9">@Model.QuienAsigna</dd>
-    <dt class="col-sm-3">Quién completa</dt>
-    <dd class="col-sm-9">@(string.IsNullOrWhiteSpace(Model.QuienCompleta) ? "-" : Model.QuienCompleta)</dd>
-    <dt class="col-sm-3">Observaciones</dt>
-    <dd class="col-sm-9">@(string.IsNullOrWhiteSpace(Model.Observaciones) ? "-" : Model.Observaciones)</dd>
-</dl>
+<div class="app-context-banner d-flex flex-wrap gap-3 align-items-center">
+    <span><strong>Parque:</strong> @Model.ParqueSolarNombre</span>
+    <span><strong>Nodo:</strong> @Model.NodoCodigo</span>
+    <span><strong>Panel:</strong> @Model.PanelCodigoSerie</span>
+</div>
 
-<p>
-    @if (!(string.Equals(Model.Estado, "Completada", StringComparison.OrdinalIgnoreCase) || string.Equals(Model.Estado, "Cancelada", StringComparison.OrdinalIgnoreCase)))
-    {
-        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">Editar</a>
-        <a asp-action="CambiarEstado" asp-route-id="@Model.Id" class="btn btn-warning">Cambiar estado</a>
-    }
-    <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">Eliminar</a>
-    <a asp-action="Index" asp-route-panelId="@Model.PanelId" class="btn btn-secondary">Volver al listado</a>
-</p>
+<div class="card app-form-card">
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-3">Tipo de tarea</dt>
+            <dd class="col-sm-9">@Model.TipoTarea</dd>
+
+            <dt class="col-sm-3">Descripción</dt>
+            <dd class="col-sm-9">@Model.Descripcion</dd>
+
+            <dt class="col-sm-3">Asignado a</dt>
+            <dd class="col-sm-9">@Model.AsignadoA</dd>
+
+            <dt class="col-sm-3">Estado</dt>
+            <dd class="col-sm-9"><partial name="_EstadoBadge" model="Model.Estado" /></dd>
+
+            <dt class="col-sm-3">Fecha de asignación</dt>
+            <dd class="col-sm-9">@Model.FechaAsignacion.ToString("yyyy-MM-dd")</dd>
+
+            <dt class="col-sm-3">Fecha de vencimiento</dt>
+            <dd class="col-sm-9">@Model.FechaVencimiento.ToString("yyyy-MM-dd")</dd>
+
+            <dt class="col-sm-3">Fecha de inicio</dt>
+            <dd class="col-sm-9">@(Model.FechaInicio == default ? "-" : Model.FechaInicio.ToString("yyyy-MM-dd"))</dd>
+
+            <dt class="col-sm-3">Fecha de finalización</dt>
+            <dd class="col-sm-9">@(Model.FechaFinalizacion == default ? "-" : Model.FechaFinalizacion.ToString("yyyy-MM-dd"))</dd>
+
+            <dt class="col-sm-3">Quién asigna</dt>
+            <dd class="col-sm-9">@Model.QuienAsigna</dd>
+
+            <dt class="col-sm-3">Quién completa</dt>
+            <dd class="col-sm-9">@(string.IsNullOrWhiteSpace(Model.QuienCompleta) ? "-" : Model.QuienCompleta)</dd>
+
+            <dt class="col-sm-3">Observaciones</dt>
+            <dd class="col-sm-9 mb-0">@(string.IsNullOrWhiteSpace(Model.Observaciones) ? "-" : Model.Observaciones)</dd>
+        </dl>
+    </div>
+</div>

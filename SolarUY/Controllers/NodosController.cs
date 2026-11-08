@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using SolarUY.Application.Dtos;
 using SolarUY.Application.Services;
 using SolarUY.Domain.Exceptions;
+using SolarUY.Models;
 
 namespace SolarUY.Controllers;
 
@@ -14,11 +15,16 @@ public class NodosController : Controller
 {
     private readonly INodoService _nodoService;
     private readonly IParqueSolarService _parqueSolarService;
+    private readonly IPanelService _panelService;
 
-    public NodosController(INodoService nodoService, IParqueSolarService parqueSolarService)
+    public NodosController(
+        INodoService nodoService,
+        IParqueSolarService parqueSolarService,
+        IPanelService panelService)
     {
         _nodoService = nodoService ?? throw new ArgumentNullException(nameof(nodoService));
         _parqueSolarService = parqueSolarService ?? throw new ArgumentNullException(nameof(parqueSolarService));
+        _panelService = panelService ?? throw new ArgumentNullException(nameof(panelService));
     }
 
     [HttpGet]
@@ -34,24 +40,26 @@ public class NodosController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Create(Guid parqueId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(Guid parqueId, string? returnUrl, CancellationToken cancellationToken)
     {
         var parque = await _parqueSolarService.ObtenerParqueAsync(parqueId, cancellationToken);
         if (parque is null)
             return NotFound();
 
         ViewBag.Parque = parque;
+        ViewBag.ReturnUrl = returnUrl;
         return View(new CrearNodoInversorDto { ParqueSolarId = parqueId, Estado = "Activo" });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(CrearNodoInversorDto dto, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(CrearNodoInversorDto dto, string? returnUrl, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
             var parque = await _parqueSolarService.ObtenerParqueAsync(dto.ParqueSolarId, cancellationToken);
             ViewBag.Parque = parque;
+            ViewBag.ReturnUrl = returnUrl;
             return View(dto);
         }
 
@@ -69,10 +77,16 @@ public class NodosController : Controller
             ModelState.AddModelError(nameof(dto.Codigo), "Ya existe un nodo con ese código en el parque solar.");
             var parque = await _parqueSolarService.ObtenerParqueAsync(dto.ParqueSolarId, cancellationToken);
             ViewBag.Parque = parque;
+            ViewBag.ReturnUrl = returnUrl;
             return View(dto);
         }
 
         TempData["Mensaje"] = $"El nodo '{dto.Codigo}' se registró correctamente.";
+        if (Url.IsLocalUrl(returnUrl))
+        {
+            return Redirect(returnUrl!);
+        }
+
         return RedirectToAction(nameof(Index), new { parqueId = dto.ParqueSolarId });
     }
 
@@ -80,11 +94,23 @@ public class NodosController : Controller
     public async Task<IActionResult> Details(Guid id, CancellationToken cancellationToken)
     {
         var nodo = await _nodoService.ObtenerNodoAsync(id, cancellationToken);
-        return nodo is null ? NotFound() : View(nodo);
+        if (nodo is null)
+        {
+            return NotFound();
+        }
+
+        var paneles = await _panelService.ObtenerPanelesPorNodoAsync(id, cancellationToken);
+        var modelo = new NodoDetalleViewModel
+        {
+            Nodo = nodo,
+            Paneles = paneles,
+        };
+
+        return View(modelo);
     }
 
     [HttpGet]
-    public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
         var nodo = await _nodoService.ObtenerNodoAsync(id, cancellationToken);
         if (nodo is null)
@@ -105,17 +131,19 @@ public class NodosController : Controller
         };
 
         ViewBag.ParqueSolarNombre = nodo.ParqueSolarNombre;
+        ViewBag.ReturnUrl = returnUrl;
         return View(dto);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(EditarNodoInversorDto dto, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(EditarNodoInversorDto dto, string? returnUrl, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
             var nodo = await _nodoService.ObtenerNodoAsync(dto.Id, cancellationToken);
             ViewBag.ParqueSolarNombre = nodo?.ParqueSolarNombre;
+            ViewBag.ReturnUrl = returnUrl;
             return View(dto);
         }
 
@@ -133,24 +161,31 @@ public class NodosController : Controller
             ModelState.AddModelError(nameof(dto.Codigo), "Ya existe un nodo con ese código en el parque solar.");
             var nodo = await _nodoService.ObtenerNodoAsync(dto.Id, cancellationToken);
             ViewBag.ParqueSolarNombre = nodo?.ParqueSolarNombre;
+            ViewBag.ReturnUrl = returnUrl;
             return View(dto);
         }
 
         TempData["Mensaje"] = $"El nodo '{dto.Codigo}' se actualizó correctamente.";
+        if (Url.IsLocalUrl(returnUrl))
+        {
+            return Redirect(returnUrl!);
+        }
+
         return RedirectToAction(nameof(Index), new { parqueId = dto.ParqueSolarId });
     }
 
     [HttpGet]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Delete(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
         var nodo = await _nodoService.ObtenerNodoAsync(id, cancellationToken);
+        ViewBag.ReturnUrl = returnUrl;
         return nodo is null ? NotFound() : View(nodo);
     }
 
     [HttpPost]
     [ActionName(nameof(Delete))]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteConfirmed(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> DeleteConfirmed(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
         var nodo = await _nodoService.ObtenerNodoAsync(id, cancellationToken);
         if (nodo is null)
@@ -170,6 +205,11 @@ public class NodosController : Controller
         }
 
         TempData["Mensaje"] = "El nodo se eliminó correctamente.";
+        if (Url.IsLocalUrl(returnUrl))
+        {
+            return Redirect(returnUrl!);
+        }
+
         return RedirectToAction(nameof(Index), new { parqueId = nodo.ParqueSolarId });
     }
 }

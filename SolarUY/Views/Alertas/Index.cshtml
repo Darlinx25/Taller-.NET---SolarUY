@@ -7,80 +7,125 @@
 }
 @{
     ViewData["Title"] = "Alertas de paneles";
+    var migas = new List<BreadcrumbItem>
+    {
+        new() { Texto = "Inicio", Url = Url.Action("Index", "Home") },
+        new() { Texto = "Alertas" }
+    };
+    var emptyActivas = new EmptyStateViewModel
+    {
+        Mensaje = "Sin alertas activas. Todos los paneles monitoreados están operativos."
+    };
+    var emptyHistorial = new EmptyStateViewModel
+    {
+        Mensaje = "Todavía no hay alertas cerradas."
+    };
 }
 
-<div class="container mt-4">
-    <h1 class="h3 mb-3">Alertas de paneles</h1>
+<partial name="_Breadcrumbs" model="migas" />
 
-    <h2 class="h5">Alertas activas (@Model.Activas.Count)</h2>
+<div class="app-page-header">
+    <div>
+        <h1 class="h3">Alertas de paneles</h1>
+        <p class="app-page-subtitle">Seguimiento de fallas activas e historial de alertas cerradas.</p>
+    </div>
+</div>
 
-    @if (Model.Activas.Count == 0)
-    {
-        <div class="alert alert-success" role="alert">Sin alertas activas.</div>
-    }
-    else
-    {
-        <div class="table-responsive mb-4">
-            <table class="table table-sm table-striped">
-                <thead>
-                    <tr>
-                        <th>Parque Solar</th>
-                        <th>Nodo</th>
-                        <th>Panel</th>
-                        <th>Inicio (UTC)</th>
-                        <th>Duración</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var alerta in Model.Activas)
-                    {
-                        <tr>
-                            <td>@alerta.NombreParque</td>
-                            <td>@alerta.CodigoNodo</td>
-                            <td>@alerta.CodigoSerie</td>
-                            <td>@FormatearFecha(alerta.FechaInicioUtc)</td>
-                            <td>@FormatearDuracion(alerta.Duracion)</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="app-stat-card">
+            <div class="app-stat-label">Alertas activas</div>
+            <div class="app-stat-value">@Model.Activas.Count</div>
         </div>
-    }
-
-    <h2 class="h5">Historial (últimas 50 alertas cerradas)</h2>
-
-    @if (Model.Historial.Count == 0)
-    {
-        <p class="text-muted">Todavía no hay alertas cerradas.</p>
-    }
-    else
-    {
-        <div class="table-responsive">
-            <table class="table table-sm table-striped">
-                <thead>
-                    <tr>
-                        <th>Parque Solar</th>
-                        <th>Nodo</th>
-                        <th>Panel</th>
-                        <th>Inicio (UTC)</th>
-                        <th>Fin (UTC)</th>
-                        <th>Duración</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var alerta in Model.Historial)
-                    {
-                        <tr>
-                            <td>@alerta.NombreParque</td>
-                            <td>@alerta.CodigoNodo</td>
-                            <td>@alerta.CodigoSerie</td>
-                            <td>@FormatearFecha(alerta.FechaInicioUtc)</td>
-                            <td>@(alerta.FechaFinUtc.HasValue ? FormatearFecha(alerta.FechaFinUtc.Value) : "-")</td>
-                            <td>@FormatearDuracion(alerta.Duracion)</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="app-stat-card">
+            <div class="app-stat-label">Alertas cerradas</div>
+            <div class="app-stat-value">@Model.Historial.Count</div>
         </div>
-    }
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Alertas activas</span>
+        <span class="badge text-bg-danger">@Model.Activas.Count</span>
+    </div>
+    <div class="card-body">
+        @if (Model.Activas.Count == 0)
+        {
+            <partial name="_EmptyState" model="emptyActivas" />
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Parque solar</th>
+                            <th>Nodo</th>
+                            <th>Panel</th>
+                            <th>Inicio (UTC)</th>
+                            <th class="text-end">Duración</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var alerta in Model.Activas)
+                        {
+                            <tr>
+                                <td>@alerta.NombreParque</td>
+                                <td>@alerta.CodigoNodo</td>
+                                <td class="fw-semibold">@alerta.CodigoSerie</td>
+                                <td>@FormatearFecha(alerta.FechaInicioUtc)</td>
+                                <td class="text-end">@FormatearDuracion(alerta.Duracion)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Historial (últimas 50 alertas cerradas)</span>
+        <span class="badge text-bg-secondary">@Model.Historial.Count</span>
+    </div>
+    <div class="card-body">
+        @if (Model.Historial.Count == 0)
+        {
+            <partial name="_EmptyState" model="emptyHistorial" />
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Parque solar</th>
+                            <th>Nodo</th>
+                            <th>Panel</th>
+                            <th>Inicio (UTC)</th>
+                            <th>Fin (UTC)</th>
+                            <th class="text-end">Duración</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var alerta in Model.Historial)
+                        {
+                            <tr>
+                                <td>@alerta.NombreParque</td>
+                                <td>@alerta.CodigoNodo</td>
+                                <td class="fw-semibold">@alerta.CodigoSerie</td>
+                                <td>@FormatearFecha(alerta.FechaInicioUtc)</td>
+                                <td>@(alerta.FechaFinUtc.HasValue ? FormatearFecha(alerta.FechaFinUtc.Value) : "-")</td>
+                                <td class="text-end">@FormatearDuracion(alerta.Duracion)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
 </div>

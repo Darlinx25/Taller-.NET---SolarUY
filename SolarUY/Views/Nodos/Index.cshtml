@@ -2,55 +2,93 @@
 @{
     var parque = ViewBag.Parque as SolarUY.Application.Dtos.ParqueSolarDto;
     ViewData["Title"] = "Nodos e inversores";
-}
-
-<h1 class="h3 mb-3">Nodos e inversores - @parque?.Nombre</h1>
-
-@if (TempData["Mensaje"] is string mensaje)
-{
-    <div class="alert alert-success">@mensaje</div>
-}
-@if (TempData["Error"] is string error)
-{
-    <div class="alert alert-danger">@error</div>
-}
-
-<div class="mb-3">
-    <a class="btn btn-primary" asp-action="Create" asp-route-parqueId="@parque?.Id">Nuevo nodo e inversor</a>
-    <a class="btn btn-secondary" asp-controller="ParquesSolares" asp-action="Details" asp-route-id="@parque?.Id">Volver al parque</a>
-</div>
-
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Código</th>
-            <th>Estado</th>
-            <th>Inversor</th>
-            <th>Descripción</th>
-            <th>Fecha de creación</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-    @foreach (var item in Model)
+    var returnUrlParque = parque is null
+        ? null
+        : Url.Action("Details", "ParquesSolares", new { id = parque.Id });
+    var returnUrlListado = Url.Action("Index", "Nodos", new { parqueId = parque?.Id });
+    var migas = new List<BreadcrumbItem>
     {
-        <tr>
-            <td>@item.Codigo</td>
-            <td>@item.Estado</td>
-            <td>@(item.Inversor is null ? "-" : $"{item.Inversor.Marca} {item.Inversor.Modelo} ({item.Inversor.NumeroSerie})")</td>
-            <td>@(string.IsNullOrWhiteSpace(item.Descripcion) ? "-" : item.Descripcion)</td>
-            <td>@item.FechaCreacion.ToString("yyyy-MM-dd HH:mm")</td>
-            <td class="text-end">
-                <a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@item.Id">Detalle</a>
-                <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@item.Id">Editar</a>
-                <a class="btn btn-sm btn-outline-danger" asp-action="Delete" asp-route-id="@item.Id">Eliminar</a>
-            </td>
-        </tr>
-    }
-    </tbody>
-</table>
+        new() { Texto = "Inicio", Url = Url.Action("Index", "Home") },
+        new() { Texto = "Parques solares", Url = Url.Action("Index", "ParquesSolares") },
+        new() { Texto = parque?.Nombre ?? "Parque solar", Url = returnUrlParque },
+        new() { Texto = "Nodos" }
+    };
+    var emptyState = new EmptyStateViewModel
+    {
+        Mensaje = "No hay nodos registrados para este parque solar.",
+        TextoAccion = "Nuevo nodo e inversor",
+        UrlAccion = Url.Action("Create", "Nodos", new { parqueId = parque?.Id, returnUrl = returnUrlParque })
+    };
+}
+
+<partial name="_Breadcrumbs" model="migas" />
+
+<div class="app-page-header">
+    <div>
+        <h1 class="h3">Nodos e inversores</h1>
+        <p class="app-page-subtitle">@parque?.Nombre</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-primary" asp-action="Create" asp-route-parqueId="@parque?.Id" asp-route-returnUrl="@returnUrlParque">Nuevo nodo e inversor</a>
+        <a class="btn btn-secondary" asp-controller="ParquesSolares" asp-action="Details" asp-route-id="@parque?.Id">Volver al parque</a>
+    </div>
+</div>
 
 @if (!Model.Any())
 {
-    <p class="text-muted">No hay nodos registrados para este parque solar.</p>
+    <partial name="_EmptyState" model="emptyState" />
+}
+else
+{
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">Código</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col">Inversor</th>
+                        <th scope="col">Descripción</th>
+                        <th scope="col">Fecha de creación</th>
+                        <th scope="col" class="text-end">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        var returnUrlNodo = Url.Action("Details", "Nodos", new { id = item.Id });
+                        <tr>
+                            <td class="fw-semibold">@item.Codigo</td>
+                            <td><partial name="_EstadoBadge" model="item.Estado" /></td>
+                            <td>
+                                @(item.Inversor is null
+                                    ? "-"
+                                    : $"{item.Inversor.Marca} {item.Inversor.Modelo} ({item.Inversor.NumeroSerie})")
+                            </td>
+                            <td>@(string.IsNullOrWhiteSpace(item.Descripcion) ? "-" : item.Descripcion)</td>
+                            <td>@item.FechaCreacion.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>
+                                <div class="app-table-actions">
+                                    <a class="btn btn-sm btn-outline-secondary"
+                                       asp-controller="Paneles" asp-action="Index"
+                                       asp-route-nodoId="@item.Id">Ver paneles</a>
+                                    <a class="btn btn-sm btn-outline-success"
+                                       asp-controller="Paneles" asp-action="Create"
+                                       asp-route-nodoId="@item.Id"
+                                       asp-route-returnUrl="@returnUrlNodo">Agregar panel</a>
+                                    <a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@item.Id">Detalle</a>
+                                    <a class="btn btn-sm btn-outline-primary"
+                                       asp-action="Edit" asp-route-id="@item.Id"
+                                       asp-route-returnUrl="@returnUrlListado">Editar</a>
+                                    <a class="btn btn-sm btn-outline-danger"
+                                       asp-action="Delete" asp-route-id="@item.Id"
+                                       asp-route-returnUrl="@returnUrlListado">Eliminar</a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
 }

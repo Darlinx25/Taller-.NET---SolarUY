@@ -1,46 +1,83 @@
 @model SolarUY.Application.Dtos.CrearTareaMantenimientoDto
 @{
-    ViewData["Title"] = "Crear tarea de mantenimiento";
     var panel = ViewBag.Panel as SolarUY.Application.Dtos.PanelDetalleDto;
+    ViewData["Title"] = "Crear tarea de mantenimiento";
+
+    var migas = new List<BreadcrumbItem>
+    {
+        new() { Texto = "Inicio", Url = Url.Action("Index", "Home") },
+        new() { Texto = "Parques solares", Url = Url.Action("Index", "ParquesSolares") }
+    };
+    if (panel is not null)
+    {
+        migas.Add(new() { Texto = panel.ParqueSolarNombre ?? "Parque solar", Url = Url.Action("Details", "ParquesSolares", new { id = panel.ParqueSolarId }) });
+        migas.Add(new() { Texto = panel.NodoCodigo, Url = Url.Action("Details", "Nodos", new { id = panel.NodoId }) });
+        migas.Add(new() { Texto = panel.CodigoSerie, Url = Url.Action("Details", "Paneles", new { id = panel.Id }) });
+        migas.Add(new() { Texto = "Tareas", Url = Url.Action("Index", "TareasMantenimiento", new { panelId = panel.Id }) });
+    }
+    migas.Add(new() { Texto = "Nueva tarea" });
 }
 
-<h1>Crear tarea de mantenimiento</h1>
+<partial name="_Breadcrumbs" model="migas" />
 
-@if (panel != null)
+<div class="app-page-header">
+    <div>
+        <h1 class="h3">Crear tarea de mantenimiento</h1>
+        <p class="app-page-subtitle">@(panel is null ? "Panel" : $"Panel {panel.CodigoSerie}")</p>
+    </div>
+</div>
+
+@if (panel is not null)
 {
-    <div class="alert alert-info">
-        <strong>Parque Solar:</strong> @panel.ParqueSolarNombre &rarr; <strong>Nodo:</strong> @panel.NodoCodigo &rarr; <strong>Panel:</strong> @panel.CodigoSerie
+    <div class="app-context-banner d-flex flex-wrap gap-3 align-items-center">
+        <span><strong>Parque:</strong> @panel.ParqueSolarNombre</span>
+        <span><strong>Nodo:</strong> @panel.NodoCodigo</span>
+        <span><strong>Panel:</strong> @panel.CodigoSerie</span>
     </div>
 }
 
-<form asp-action="Create" method="post">
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-    <input type="hidden" asp-for="PanelId" />
-    <div class="form-group">
-        <label asp-for="TipoTarea"></label>
-        <input asp-for="TipoTarea" class="form-control" />
-        <span asp-validation-for="TipoTarea" class="text-danger"></span>
+<div class="card app-form-card">
+    <div class="card-body">
+        <form asp-action="Create" method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+            <input type="hidden" asp-for="PanelId" />
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="TipoTarea" class="form-label"></label>
+                    <input asp-for="TipoTarea" class="form-control" placeholder="Ej. Limpieza de paneles" />
+                    <span asp-validation-for="TipoTarea" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="AsignadoA" class="form-label"></label>
+                    <input asp-for="AsignadoA" class="form-control" placeholder="Responsable de la tarea" />
+                    <span asp-validation-for="AsignadoA" class="text-danger"></span>
+                </div>
+                <div class="col-12">
+                    <label asp-for="Descripcion" class="form-label"></label>
+                    <textarea asp-for="Descripcion" class="form-control" rows="3" placeholder="Detalle de la tarea"></textarea>
+                    <span asp-validation-for="Descripcion" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="FechaVencimiento" class="form-label"></label>
+                    <input asp-for="FechaVencimiento" type="date" class="form-control" />
+                    <span asp-validation-for="FechaVencimiento" class="text-danger"></span>
+                </div>
+                <div class="col-12">
+                    <label asp-for="Observaciones" class="form-label"></label>
+                    <textarea asp-for="Observaciones" class="form-control" rows="2" placeholder="Observaciones opcionales"></textarea>
+                    <span asp-validation-for="Observaciones" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="app-action-bar">
+                <button type="submit" class="btn btn-primary">Crear</button>
+                <a class="btn btn-secondary" asp-action="Index" asp-route-panelId="@Model.PanelId">Cancelar</a>
+            </div>
+        </form>
     </div>
-    <div class="form-group">
-        <label asp-for="Descripcion"></label>
-        <textarea asp-for="Descripcion" class="form-control"></textarea>
-        <span asp-validation-for="Descripcion" class="text-danger"></span>
-    </div>
-    <div class="form-group">
-        <label asp-for="AsignadoA"></label>
-        <input asp-for="AsignadoA" class="form-control" />
-        <span asp-validation-for="AsignadoA" class="text-danger"></span>
-    </div>
-    <div class="form-group">
-        <label asp-for="FechaVencimiento"></label>
-        <input asp-for="FechaVencimiento" type="date" class="form-control" />
-        <span asp-validation-for="FechaVencimiento" class="text-danger"></span>
-    </div>
-    <div class="form-group">
-        <label asp-for="Observaciones"></label>
-        <textarea asp-for="Observaciones" class="form-control"></textarea>
-        <span asp-validation-for="Observaciones" class="text-danger"></span>
-    </div>
-    <button type="submit" class="btn btn-primary">Crear</button>
-    <a asp-action="Index" asp-route-panelId="@Model.PanelId" class="btn btn-secondary">Volver</a>
-</form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

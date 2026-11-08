@@ -2,7 +2,54 @@
     ViewData["Title"] = "Inicio";
 }
 
-<div class="text-center">
-    <h1 class="display-4">SolarUY</h1>
-    <p class="lead">Gestión de parques solares.</p>
+<div class="app-page-header">
+    <div>
+        <h1 class="h3">Bienvenido a SolarUY</h1>
+        <p class="app-page-subtitle">Gestión y monitoreo de parques solares.</p>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-6 col-xl-3">
+        <div class="card h-100 app-card-hover">
+            <div class="card-body d-flex flex-column">
+                <h2 class="h5">Dashboard</h2>
+                <p class="text-muted flex-grow-1">Telemetría en vivo de parques, nodos y paneles.</p>
+                <a class="btn btn-primary" asp-controller="Dashboard" asp-action="Index">Ver dashboard</a>
+            </div>
+        </div>
+    </div>
+
+    @if (User.IsInRole("Administrador"))
+    {
+        <div class="col-md-6 col-xl-3">
+            <div class="card h-100 app-card-hover">
+                <div class="card-body d-flex flex-column">
+                    <h2 class="h5">Parques solares</h2>
+                    <p class="text-muted flex-grow-1">Administrá parques, nodos, inversores y paneles.</p>
+                    <a class="btn btn-primary" asp-controller="ParquesSolares" asp-action="Index">Gestionar parques</a>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="col-md-6 col-xl-3">
+        <div class="card h-100 app-card-hover">
+            <div class="card-body d-flex flex-column">
+                <h2 class="h5">Alertas</h2>
+                <p class="text-muted flex-grow-1">Consultá fallas activas e historial de alertas.</p>
+                <a class="btn btn-primary" asp-controller="Alertas" asp-action="Index">Ver alertas</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+        <div class="card h-100 app-card-hover">
+            <div class="card-body d-flex flex-column">
+                <h2 class="h5">Histórico</h2>
+                <p class="text-muted flex-grow-1">Analizá la generación por período y entidad.</p>
+                <a class="btn btn-primary" asp-controller="Historico" asp-action="Index">Ver histórico</a>
+            </div>
+        </div>
+    </div>
 </div>

@@ -1,33 +1,54 @@
 @model CrearParqueSolarDto
 @{
     ViewData["Title"] = "Registrar parque solar";
+    var migas = new List<BreadcrumbItem>
+    {
+        new() { Texto = "Inicio", Url = Url.Action("Index", "Home") },
+        new() { Texto = "Parques solares", Url = Url.Action("Index", "ParquesSolares") },
+        new() { Texto = "Registrar" }
+    };
 }
 
-<h1 class="h3 mb-4">Registrar parque solar</h1>
+<partial name="_Breadcrumbs" model="migas" />
 
-<form asp-controller="ParquesSolares" asp-action="Create" method="post">
-    <div class="mb-3">
-        <label asp-for="Nombre" class="form-label"></label>
-        <input asp-for="Nombre" class="form-control" placeholder="Ej. Parque Solar Manga" />
-        <span asp-validation-for="Nombre" class="text-danger"></span>
+<div class="app-page-header">
+    <div>
+        <h1 class="h3">Registrar parque solar</h1>
+        <p class="app-page-subtitle">Completá los datos básicos del parque. Después podrás agregar nodos y paneles.</p>
     </div>
+</div>
 
-    <div class="mb-3">
-        <label asp-for="Ubicacion" class="form-label"></label>
-        <input asp-for="Ubicacion" class="form-control" placeholder="Ej. Ruta 5 km 12, Canelones" />
-        <span asp-validation-for="Ubicacion" class="text-danger"></span>
+<div class="card app-form-card">
+    <div class="card-body">
+        <form asp-controller="ParquesSolares" asp-action="Create" method="post">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="Nombre" class="form-label"></label>
+                    <input asp-for="Nombre" class="form-control" placeholder="Ej. Parque Solar Manga" />
+                    <span asp-validation-for="Nombre" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="Ubicacion" class="form-label"></label>
+                    <input asp-for="Ubicacion" class="form-control" placeholder="Ej. Ruta 5 km 12, Canelones" />
+                    <span asp-validation-for="Ubicacion" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="CapacidadEstimadaMW" class="form-label"></label>
+                    <input asp-for="CapacidadEstimadaMW" class="form-control" step="0.01" placeholder="Ej. 25.50" />
+                    <span asp-validation-for="CapacidadEstimadaMW" class="text-danger"></span>
+                    <div class="form-text">Capacidad total estimada en megavatios (opcional).</div>
+                </div>
+            </div>
+
+            <div class="app-action-bar">
+                <button type="submit" class="btn btn-primary">Registrar</button>
+                <a class="btn btn-secondary" asp-controller="ParquesSolares" asp-action="Index">Cancelar</a>
+            </div>
+        </form>
     </div>
-
-    <div class="mb-3">
-        <label asp-for="CapacidadEstimadaMW" class="form-label"></label>
-        <input asp-for="CapacidadEstimadaMW" class="form-control" step="0.01" placeholder="Ej. 25.50" />
-        <span asp-validation-for="CapacidadEstimadaMW" class="text-danger"></span>
-        <div class="form-text">Capacidad total estimada en megavatios (opcional).</div>
-    </div>
-
-    <button type="submit" class="btn btn-primary">Registrar</button>
-    <a class="btn btn-secondary" asp-controller="ParquesSolares" asp-action="Index">Cancelar</a>
-</form>
+</div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
