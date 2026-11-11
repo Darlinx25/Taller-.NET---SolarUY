@@ -9,6 +9,14 @@ public class DashboardTelemetriaViewDto
 
     public IReadOnlyList<DashboardParqueDto> Parques { get; set; } = Array.Empty<DashboardParqueDto>();
 
+    public IReadOnlyList<DashboardBarraDto> GeneracionPorParque { get; set; } =
+        Array.Empty<DashboardBarraDto>();
+
+    public IReadOnlyList<DashboardBarraDto> GeneracionPorNodo { get; set; } =
+        Array.Empty<DashboardBarraDto>();
+
+    public DashboardDistribucionEstadosDto DistribucionEstadosPaneles { get; set; } = new();
+
     public bool TieneDatos { get; set; }
 
     /// <summary>

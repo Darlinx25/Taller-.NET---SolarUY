@@ -26,7 +26,7 @@
 | Parques | Nodos | Configuracion de nodos e inversores | Admin | Listo |
 | Parques | Paneles | Registro de paneles fotovoltaicos | Admin | Listo |
 | Mantenimiento | Tareas | Registro y seguimiento de tareas por panel | Admin | Listo |
-| Monitoreo | Dashboard | Topologia registrada y telemetria de energia en vivo via SignalR, sin recarga | Todos | Listo |
+| Monitoreo | Dashboard | Topologia registrada, telemetria de energia en vivo via SignalR sin recarga y graficas de generacion, estado de paneles y tendencia de 7 dias | Todos | Listo |
 | Monitoreo | Alertas | Deteccion de fallos en paneles, con historial, pantalla e indicador en vivo | Todos | Listo |
 | Historicos | Reportes | Metricas de energia por dia/mes/ano | Todos | Listo |
 | Historicos | Consulta IA | Consulta del estado del sistema en lenguaje natural desde Antigravity via servidor MCP de solo lectura (req011) | Todos | Listo |

@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using SolarUY.Application.Dtos;
 using SolarUY.Application.Services;
 
 namespace SolarUY.Controllers;
@@ -18,8 +19,18 @@ public class DashboardController : Controller
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        var modelo = await _dashboardService.ObtenerDashboardAsync(cancellationToken).ConfigureAwait(false);
-        return View(modelo);
+        var dashboard = await _dashboardService
+            .ObtenerDashboardAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var tendencia = await _dashboardService
+            .ObtenerTendenciaEnergiaAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return View(new DashboardPaginaDto
+        {
+            Dashboard = dashboard,
+            Tendencia = tendencia
+        });
     }
 
     [HttpGet]
@@ -27,5 +38,15 @@ public class DashboardController : Controller
     {
         var modelo = await _dashboardService.ObtenerDashboardAsync(cancellationToken).ConfigureAwait(false);
         return PartialView("_DashboardContenido", modelo);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Tendencia(CancellationToken cancellationToken)
+    {
+        var modelo = await _dashboardService
+            .ObtenerTendenciaEnergiaAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return Json(modelo);
     }
 }

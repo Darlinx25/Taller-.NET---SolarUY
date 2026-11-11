@@ -12,7 +12,7 @@
 
 @if (Model.SimulacionForzadaActiva || puedeControlar)
 {
-    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <div class="d-flex flex-wrap align-items-center gap-2 dashboard-block-full">
         @if (Model.SimulacionForzadaActiva)
         {
             <span class="badge text-bg-warning" id="indicadorSimulacionForzada">Día forzado activo</span>
@@ -30,7 +30,7 @@
     </div>
 }
 
-<div class="row g-3 mb-3">
+<div class="row g-3 dashboard-block-full">
     <div class="col-md-6 col-xl-3">
         <div class="app-stat-card">
             <div class="app-stat-label">Última lectura</div>
@@ -49,66 +49,127 @@
     </div>
 </div>
 
+<div class="row g-3 dashboard-block-full">
+    <div class="col-xl-7">
+        <div class="card h-100">
+            <div class="card-header">Generación actual por parque</div>
+            <div class="card-body">
+                @if (Model.GeneracionPorParque.Count == 0)
+                {
+                    <div class="app-empty-state text-center py-4">Sin datos de generación por parque.</div>
+                }
+                else
+                {
+                    <div class="dashboard-chart-container">
+                        <canvas id="grafico-generacion-parque"></canvas>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-5">
+        <div class="card h-100">
+            <div class="card-header">Estado de los paneles</div>
+            <div class="card-body">
+                @if (Model.DistribucionEstadosPaneles.TotalPaneles == 0)
+                {
+                    <div class="app-empty-state text-center py-4">Sin paneles registrados.</div>
+                }
+                else
+                {
+                    <div class="dashboard-chart-container">
+                        <canvas id="grafico-estados-paneles"></canvas>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
 @if (!Model.TieneDatos)
 {
-    <div class="alert alert-warning" role="alert">
+    <div class="alert alert-warning dashboard-block-full" role="alert">
         @Model.MensajeSinDatos
     </div>
 }
 
 @if (Model.Parques.Count == 0)
 {
-    <partial name="_EmptyState" model="emptyState" />
-}
-
-@foreach (var parque in Model.Parques)
-{
-    <div class="card mb-4">
-        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <div>
-                <strong>@parque.Nombre</strong>
-                @if (!string.IsNullOrEmpty(parque.Ubicacion))
-                {
-                    <span class="text-muted"> - @parque.Ubicacion</span>
-                }
-            </div>
-            <span class="badge text-bg-primary">Generación total: @parque.GeneracionTotal.ToString("N2")</span>
-        </div>
-        <div class="card-body">
-            @foreach (var nodo in parque.Nodos)
-            {
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <strong>Nodo: @nodo.Codigo</strong>
-                        <span class="badge text-bg-secondary">Generación: @nodo.Generacion.ToString("N2")</span>
-                    </div>
-                    <div class="table-responsive mt-2">
-                        <table class="table table-sm table-hover align-middle mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Código/Serie</th>
-                                    <th>Marca/Modelo</th>
-                                    <th class="text-end">Potencia (Wp)</th>
-                                    <th class="text-end">Generación</th>
-                                    <th>Estado de salud</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var panel in nodo.Paneles)
-                                {
-                                    <tr>
-                                        <td class="fw-semibold">@panel.CodigoSerie</td>
-                                        <td>@panel.Marca @panel.Modelo</td>
-                                        <td class="text-end">@panel.PotenciaWp.ToString("N0")</td>
-                                        <td class="text-end">@panel.Generacion.ToString("N2")</td>
-                                        <td><partial name="_EstadoBadge" model="panel.EstadoSalud" /></td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            }
-        </div>
+    <div class="dashboard-block-full">
+        <partial name="_EmptyState" model="emptyState" />
     </div>
 }
+
+<div class="card dashboard-block-half dashboard-node-chart">
+    <div class="card-header">Generación por nodo</div>
+    <div class="card-body">
+        @if (Model.GeneracionPorNodo.Count == 0)
+        {
+            <div class="app-empty-state text-center py-4">Sin datos de generación por nodo.</div>
+        }
+        else
+        {
+            <div class="dashboard-chart-container dashboard-chart-container-lg">
+                <canvas id="grafico-generacion-nodo"></canvas>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="dashboard-block-full dashboard-topologia">
+    @foreach (var parque in Model.Parques)
+    {
+        <div class="card mb-3">
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div>
+                    <strong>@parque.Nombre</strong>
+                    @if (!string.IsNullOrEmpty(parque.Ubicacion))
+                    {
+                        <span class="text-muted"> - @parque.Ubicacion</span>
+                    }
+                </div>
+                <span class="badge text-bg-primary">Generación total: @parque.GeneracionTotal.ToString("N2")</span>
+            </div>
+            <div class="card-body">
+                @foreach (var nodo in parque.Nodos)
+                {
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong>Nodo: @nodo.Codigo</strong>
+                            <span class="badge text-bg-secondary">Generación: @nodo.Generacion.ToString("N2")</span>
+                        </div>
+                        <div class="table-responsive mt-2">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Código/Serie</th>
+                                        <th>Marca/Modelo</th>
+                                        <th class="text-end">Potencia (Wp)</th>
+                                        <th class="text-end">Generación</th>
+                                        <th>Estado de salud</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var panel in nodo.Paneles)
+                                    {
+                                        <tr>
+                                            <td class="fw-semibold">@panel.CodigoSerie</td>
+                                            <td>@panel.Marca @panel.Modelo</td>
+                                            <td class="text-end">@panel.PotenciaWp.ToString("N0")</td>
+                                            <td class="text-end">@panel.Generacion.ToString("N2")</td>
+                                            <td><partial name="_EstadoBadge" model="panel.EstadoSalud" /></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<script id="datos-generacion-parque" type="application/json">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.GeneracionPorParque))</script>
+<script id="datos-estados-paneles" type="application/json">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DistribucionEstadosPaneles))</script>
+<script id="datos-generacion-nodo" type="application/json">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.GeneracionPorNodo))</script>

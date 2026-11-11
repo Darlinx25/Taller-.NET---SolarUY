@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SolarUY.Application.Dtos;
 using SolarUY.Domain.Entities;
+using SolarUY.Domain.Enums;
 using SolarUY.Domain.Repositories;
 
 namespace SolarUY.Application.Services;
@@ -20,13 +21,15 @@ public class DashboardService : IDashboardService
     private readonly IPanelRepository _panelRepository;
     private readonly ITelemetriaService _telemetriaService;
     private readonly IControlSimulacionService _controlSimulacionService;
+    private readonly IHistoricoService _historicoService;
 
     public DashboardService(
         IParqueSolarRepository parqueSolarRepository,
         INodoRepository nodoRepository,
         IPanelRepository panelRepository,
         ITelemetriaService telemetriaService,
-        IControlSimulacionService controlSimulacionService)
+        IControlSimulacionService controlSimulacionService,
+        IHistoricoService historicoService)
     {
         _controlSimulacionService = controlSimulacionService
             ?? throw new ArgumentNullException(nameof(controlSimulacionService));
@@ -34,6 +37,7 @@ public class DashboardService : IDashboardService
         _nodoRepository = nodoRepository ?? throw new ArgumentNullException(nameof(nodoRepository));
         _panelRepository = panelRepository ?? throw new ArgumentNullException(nameof(panelRepository));
         _telemetriaService = telemetriaService ?? throw new ArgumentNullException(nameof(telemetriaService));
+        _historicoService = historicoService ?? throw new ArgumentNullException(nameof(historicoService));
     }
 
     public async Task<DashboardTelemetriaViewDto> ObtenerDashboardAsync(CancellationToken cancellationToken = default)
@@ -109,13 +113,59 @@ public class DashboardService : IDashboardService
             });
         }
 
+        var generacionPorParque = listaParques
+            .Select(parque => new DashboardBarraDto
+            {
+                Etiqueta = parque.Nombre,
+                Valor = parque.GeneracionTotal
+            })
+            .OrderByDescending(barra => barra.Valor)
+            .ThenBy(barra => barra.Etiqueta, StringComparer.Ordinal)
+            .ToList();
+
+        var generacionPorNodo = listaParques
+            .SelectMany(parque => parque.Nodos.Select(nodo => new DashboardBarraDto
+            {
+                Etiqueta = $"{parque.Nombre} / {nodo.Codigo}",
+                Valor = nodo.Generacion
+            }))
+            .OrderByDescending(barra => barra.Valor)
+            .ThenBy(barra => barra.Etiqueta, StringComparer.Ordinal)
+            .ToList();
+
         return new DashboardTelemetriaViewDto
         {
             FechaHora = lectura?.FechaHora,
             Parques = listaParques,
+            GeneracionPorParque = generacionPorParque,
+            GeneracionPorNodo = generacionPorNodo,
+            DistribucionEstadosPaneles = CalcularDistribucionEstados(listaParques),
             TieneDatos = lectura is not null && lectura.Parques.Count > 0,
             SimulacionForzadaActiva = control.SimulacionForzada,
             MensajeSinDatos = "Sin telemetría disponible"
+        };
+    }
+
+    public async Task<DashboardTendenciaEnergiaDto> ObtenerTendenciaEnergiaAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var filtro = _historicoService.CrearFiltroPredeterminado();
+        var hasta = filtro.Hasta ?? DateOnly.FromDateTime(DateTime.UtcNow);
+
+        filtro.TipoEntidad = TipoEntidadHistorico.Parque;
+        filtro.EntidadId = null;
+        filtro.Hasta = hasta;
+        filtro.Desde = hasta.AddDays(-6);
+        filtro.Agrupacion = AgrupacionHistorico.Dia;
+
+        var historico = await _historicoService
+            .ConsultarAsync(filtro, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new DashboardTendenciaEnergiaDto
+        {
+            Puntos = historico.PuntosGrafico,
+            TieneDatos = historico.PuntosGrafico.Count > 0
         };
     }
 
@@ -157,8 +207,40 @@ public class DashboardService : IDashboardService
         return valores.TryGetValue(id, out var valor) ? valor : null;
     }
 
+    private static DashboardDistribucionEstadosDto CalcularDistribucionEstados(
+        IEnumerable<DashboardParqueDto> parques)
+    {
+        var distribucion = new DashboardDistribucionEstadosDto();
+
+        foreach (var panel in parques.SelectMany(parque => parque.Nodos).SelectMany(nodo => nodo.Paneles))
+        {
+            distribucion.TotalPaneles++;
+
+            if (EsEstadoDeFalla(panel.EstadoSalud))
+            {
+                distribucion.EnFalla++;
+            }
+            else if (EsEstadoSinTelemetria(panel.EstadoSalud))
+            {
+                distribucion.SinTelemetria++;
+            }
+            else
+            {
+                distribucion.Operativos++;
+            }
+        }
+
+        return distribucion;
+    }
+
     private static bool EsEstadoDeFalla(string estado)
     {
         return string.Equals(estado, EstadoEnFalla, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool EsEstadoSinTelemetria(string estado)
+    {
+        return string.Equals(estado, EstadoSinTelemetria, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(estado, EstadoDesconocido, StringComparison.OrdinalIgnoreCase);
     }
 }

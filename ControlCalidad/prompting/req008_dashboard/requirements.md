@@ -41,3 +41,56 @@ Como usuario del sistema SolarUY, quiero visualizar en un dashboard en tiempo re
 - Implementar histórico/gráficas históricas (ya existe funcionalidad de históricos).
 - Crear nuevos sensores/inversores físicos.
 - Restringir el acceso por roles.
+
+## Adenda: gráficas del dashboard (agregado posterior)
+
+### Contexto
+
+A partir de una revisión con el profesor se solicita ampliar el dashboard con
+gráficas que permitan interpretar más rápido el estado del sistema. Esta adenda
+se suma a los criterios y reglas anteriores; no los reemplaza.
+
+### Criterios de aceptación adicionales
+
+9. El dashboard debe mostrar una gráfica de **generación actual por parque**.
+10. El dashboard debe mostrar una gráfica de **distribución del estado de los
+    paneles**, diferenciando al menos `Operativo`, `EnFalla` y `Sin telemetría`.
+11. El dashboard debe mostrar una gráfica de **generación por nodo**, identificando
+    el parque y el nodo de cada valor.
+12. El dashboard debe mostrar una **tendencia compacta de energía diaria de los
+    últimos 7 días**, construida a partir de los resúmenes históricos existentes.
+13. Cada gráfica debe mostrar un estado vacío claro cuando no haya datos
+    suficientes, sin impedir que se sigan mostrando la topología y las tablas
+    existentes.
+
+### Reglas de negocio adicionales
+
+- Las tres primeras gráficas son de **estado en vivo** y deben actualizarse con
+  la misma lectura de telemetría que alimenta el resto del dashboard.
+- La tendencia de 7 días es una vista **compacta y de solo lectura**; no
+  reemplaza la pantalla de Histórico ni incorpora filtros avanzados.
+- La tendencia debe reutilizar los resúmenes históricos ya existentes, sin crear
+  una nueva fuente de persistencia.
+- La lógica de agregación de las gráficas debe residir en la capa de
+  **Application**; las vistas no deben calcular totales, conteos ni series.
+- Las gráficas no deben agregar restricciones de acceso por rol.
+- No se debe consultar el histórico en cada evento de SignalR: la tendencia se
+  carga con la vista y, si se refresca, debe hacerlo con una frecuencia baja
+  (por ejemplo, cada 5 minutos), no con cada lectura de telemetría.
+
+### Aclaración sobre el fuera de alcance original
+
+La exclusión original de "histórico/gráficas históricas" se mantiene para la
+pantalla completa de históricos, sus filtros avanzados y sus reportes. Esta
+adenda incorpora únicamente una tendencia compacta de 7 días en el dashboard,
+reutilizando los resúmenes diarios existentes.
+
+### Fuera de alcance de esta adenda
+
+- Crear tablas, entidades, migraciones o una nueva fuente de persistencia para
+  las gráficas.
+- Implementar filtros avanzados de histórico dentro del dashboard.
+- Agregar series intradía o almacenamiento de lecturas históricas cada 5
+  segundos.
+- Modificar el contrato de ingesta de telemetría o el simulador.
+- Restringir el dashboard por rol.

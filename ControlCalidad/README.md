@@ -34,7 +34,7 @@ Requerimientos:
 | `req005_registro_seguimiento_tareas_mantenimiento` | Registro y seguimiento de tareas de mantenimiento por panel (Administrador) | Implementado |
 | `req006_mock_inversor` | Mock del inversor: componente independiente (carpeta `Simulador/`) que simula una placa ARM compilada a WebAssembly (Node.js), obtiene la topologia, genera la telemetria y la envia al balanceador (la lectura es efimera; los historicos son de req007). Revision 1: pasa de worker .NET a WebAssembly. Revision 2: botones del dashboard para forzar el dia y simular fallas | Implementado |
 | `req007_historicos_generacion` | Historicos de generacion por parque, nodo y panel | Implementado |
-| `req008_dashboard` | Dashboard en vivo con topologia registrada y telemetria por SignalR, sin recarga | Implementado |
+| `req008_dashboard` | Dashboard en vivo con topologia registrada, telemetria por SignalR sin recarga y adenda de graficas (generacion por parque, estado de paneles, generacion por nodo y tendencia de 7 dias) | Implementado |
 | `req010_Login_OIDC` | Login OIDC con Keycloak local (Docker Compose), PKCE, RP-initiated logout, mapeo de roles y sesión distribuida sobre req012 | Implementado |
 | `req009_alertas` | Alertas por fallos en paneles: registro con historial en MySQL, pantalla `/Alertas` e indicador en vivo por SignalR (acceso sin sesion) | En progreso |
 | `req011_servidor_mcp_consultas` | Servidor MCP de solo lectura embebido en `SolarUY` para consultar parques, topologia, estado actual, historicos, alertas y tareas de mantenimiento desde Antigravity | En progreso |
@@ -53,6 +53,9 @@ Nota: req011 tiene build y tests en verde y el análisis de SonarQube ejecutado;
 queda en ERROR por deuda preexistente (cobertura nueva 0%, duplicación nueva 5,1% y 10
 hallazgos nuevos en `SolarUY.Simulador`, `RegistroAlertasService` y `alertas-indicador.js`),
 sin hallazgos en el código MCP. Queda pendiente la prueba manual en Antigravity.
+Nota: la adenda de graficas de req008 reutiliza Chart.js local y los historicos existentes;
+no agrega persistencia, migraciones ni librerias. Build y tests pasan; la prueba manual en
+navegador queda pendiente porque el daemon de Docker no estaba disponible en el entorno local.
 
 Reglas de uso (definidas en `/agents/rules/6_flujo_trabajo_ia.md`):
 

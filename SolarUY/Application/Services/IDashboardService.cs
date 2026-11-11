@@ -7,4 +7,7 @@ namespace SolarUY.Application.Services;
 public interface IDashboardService
 {
     Task<DashboardTelemetriaViewDto> ObtenerDashboardAsync(CancellationToken cancellationToken = default);
+
+    Task<DashboardTendenciaEnergiaDto> ObtenerTendenciaEnergiaAsync(
+        CancellationToken cancellationToken = default);
 }

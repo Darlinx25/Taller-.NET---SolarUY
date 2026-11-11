@@ -125,3 +125,50 @@ body {
   max-width: 56rem;
   margin-inline: auto;
 }
+
+.dashboard-live-shell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.dashboard-live-shell > #dashboardLive {
+  display: contents;
+}
+
+.dashboard-block-full {
+  flex: 0 0 100%;
+  max-width: 100%;
+}
+
+.dashboard-block-half {
+  flex: 1 1 calc(50% - 0.5rem);
+  min-width: 20rem;
+}
+
+.dashboard-node-chart {
+  order: 10;
+}
+
+.dashboard-trend-chart {
+  order: 11;
+}
+
+.dashboard-topologia {
+  order: 20;
+}
+
+.dashboard-chart-container {
+  position: relative;
+  height: 280px;
+}
+
+.dashboard-chart-container-lg {
+  height: 320px;
+}
+
+@media (max-width: 767.98px) {
+  .dashboard-block-half {
+    flex-basis: 100%;
+  }
+}
