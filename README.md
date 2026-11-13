@@ -62,3 +62,12 @@ guardarrailes automaticos:
 2. **SonarQube** (`ControlCalidad/SonarQube`): analisis estatico de codigo (code smells, duplicacion, cobertura).
 
 Detalle de uso: [ControlCalidad/README.md](ControlCalidad/README.md).
+
+## Desarrollo con IA
+
+Para este proyecto utilizamos OpenCode con el modelo gratuito predeterminado, Big Pickle.\
+Algunas conclusiones/aprendizajes al desarrollar con IA:
+
+- Hay que definir bien los requerimientos para que el agente no tome decisiones por si solo, por ejemplo no dijimos que queríamos borrado lógico de parques solares, entonces la IA implementó la que eligió, que fue borrado de la base de datos físico DELETE con sql. Y si no nos fijamos bien como implementa todo, podemos pasar por alto cosas importantes.
+- Se nos dificulta a veces verificar exhaustivamente lo que implementa la IA, al ser más sencillo es difícil resistir el "vibecoding" por así llamarlo, aunque parezca que funciona todo hay que verificar y entender lo que implementa, como el ejemplo de borrado lógico de arriba.
+- A veces no hace caso, tiende a cortar camino siguiendo el Spec-Driven Development ejemplo le decís que haga el specs.md y que vas a leerlo antes de proseguir y ya te hace el tasks.md e implementa todo ignorando tu prompt anterior, probablemente esto sea error nuestro por no hacer bien las skills y demás.
