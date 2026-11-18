@@ -1,5 +1,6 @@
 using System;
 using SolarUY.Domain.Entities;
+using SolarUY.Domain.Enums;
 using Xunit;
 
 namespace SolarUY.Tests.Domain;
@@ -11,14 +12,14 @@ public class NodoTests
     {
         var inversor = new Inversor("Huawei", "SUN2000", "SN123456", 100m);
         var parqueId = Guid.NewGuid();
-        var nodo = new Nodo("N-01", parqueId, inversor, "Nodo principal", "Activo");
+        var nodo = new Nodo("N-01", parqueId, inversor, "Nodo principal", EstadoNodo.Activo);
 
         Assert.NotEqual(Guid.Empty, nodo.Id);
         Assert.Equal("N-01", nodo.Codigo);
         Assert.Equal(parqueId, nodo.ParqueSolarId);
         Assert.Same(inversor, nodo.Inversor);
         Assert.Equal("Nodo principal", nodo.Descripcion);
-        Assert.Equal("Activo", nodo.Estado);
+        Assert.Equal(EstadoNodo.Activo, nodo.Estado);
     }
 
     [Fact]
@@ -26,11 +27,11 @@ public class NodoTests
     {
         var inversor = new Inversor("Huawei", "SUN2000", "SN123456", 100m);
         var parqueId = Guid.NewGuid();
-        var nodo = new Nodo("  N-01  ", parqueId, inversor, "  Desc  ", "  Activo  ");
+        var nodo = new Nodo("  N-01  ", parqueId, inversor, "  Desc  ", EstadoNodo.Activo);
 
         Assert.Equal("N-01", nodo.Codigo);
         Assert.Equal("Desc", nodo.Descripcion);
-        Assert.Equal("Activo", nodo.Estado);
+        Assert.Equal(EstadoNodo.Activo, nodo.Estado);
     }
 
     [Theory]
@@ -59,7 +60,7 @@ public class NodoTests
     public void Crear_Nodo_DescripcionNull_SeAcepta()
     {
         var inversor = new Inversor("Huawei", "SUN2000", "SN123456");
-        var nodo = new Nodo("N-01", Guid.NewGuid(), inversor, null, "Activo");
+        var nodo = new Nodo("N-01", Guid.NewGuid(), inversor, null, EstadoNodo.Activo);
 
         Assert.Null(nodo.Descripcion);
     }
@@ -72,13 +73,13 @@ public class NodoTests
         var idOriginal = nodo.Id;
         var fechaOriginal = nodo.FechaCreacion;
 
-        nodo.ActualizarDatos("N-02", "Nueva descripcion", "Inactivo");
+        nodo.ActualizarDatos("N-02", "Nueva descripcion", EstadoNodo.Inactivo);
 
         Assert.Equal(idOriginal, nodo.Id);
         Assert.Equal(fechaOriginal, nodo.FechaCreacion);
         Assert.Equal("N-02", nodo.Codigo);
         Assert.Equal("Nueva descripcion", nodo.Descripcion);
-        Assert.Equal("Inactivo", nodo.Estado);
+        Assert.Equal(EstadoNodo.Inactivo, nodo.Estado);
     }
 
     [Fact]
@@ -86,8 +87,38 @@ public class NodoTests
     {
         var inversor = new Inversor("Huawei", "SUN2000", "SN123456");
         var nodo = new Nodo("N-01", Guid.NewGuid(), inversor, "Desc");
-        nodo.ActualizarDatos("N-01", "   ", "Activo");
+        nodo.ActualizarDatos("N-01", "   ", EstadoNodo.Activo);
         Assert.Null(nodo.Descripcion);
+    }
+
+    [Fact]
+    public void Crear_Nodo_SinEstado_UsaActivoPorDefecto()
+    {
+        var inversor = new Inversor("Huawei", "SUN2000", "SN123456");
+        var nodo = new Nodo("N-01", Guid.NewGuid(), inversor);
+
+        Assert.Equal(EstadoNodo.Activo, nodo.Estado);
+    }
+
+    [Theory]
+    [InlineData(EstadoNodo.Activo)]
+    [InlineData(EstadoNodo.Inactivo)]
+    [InlineData(EstadoNodo.EnMantenimiento)]
+    public void Crear_Nodo_ConEstadoValido_AsignaEstado(EstadoNodo estado)
+    {
+        var inversor = new Inversor("Huawei", "SUN2000", "SN123456");
+        var nodo = new Nodo("N-01", Guid.NewGuid(), inversor, null, estado);
+
+        Assert.Equal(estado, nodo.Estado);
+    }
+
+    [Fact]
+    public void Crear_Nodo_ConEstadoInvalido_LanzaArgumentException()
+    {
+        var inversor = new Inversor("Huawei", "SUN2000", "SN123456");
+
+        Assert.Throws<ArgumentException>(() =>
+            new Nodo("N-01", Guid.NewGuid(), inversor, null, (EstadoNodo)999));
     }
 
     [Fact]

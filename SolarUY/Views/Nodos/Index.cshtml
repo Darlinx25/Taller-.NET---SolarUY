@@ -59,7 +59,7 @@ else
                         var returnUrlNodo = Url.Action("Details", "Nodos", new { id = item.Id });
                         <tr>
                             <td class="fw-semibold">@item.Codigo</td>
-                            <td><partial name="_EstadoBadge" model="item.Estado" /></td>
+                            <td><partial name="_EstadoBadge" model="EstadoNodoOpciones.Texto(item.Estado)" /></td>
                             <td>
                                 @(item.Inversor is null
                                     ? "-"

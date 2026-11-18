@@ -1,4 +1,5 @@
 using System;
+using SolarUY.Domain.Enums;
 
 namespace SolarUY.Domain.Entities;
 
@@ -16,10 +17,10 @@ public class Nodo
     {
         Codigo = string.Empty;
         Descripcion = null;
-        Estado = "Activo";
+        Estado = EstadoNodo.Activo;
     }
 
-    public Nodo(string codigo, Guid parqueSolarId, Inversor inversor, string? descripcion = null, string estado = "Activo")
+    public Nodo(string codigo, Guid parqueSolarId, Inversor inversor, string? descripcion = null, EstadoNodo estado = EstadoNodo.Activo)
     {
         ValidarCodigo(codigo);
         ValidarParqueSolarId(parqueSolarId);
@@ -32,7 +33,7 @@ public class Nodo
         ParqueSolarId = parqueSolarId;
         Inversor = inversor;
         Descripcion = string.IsNullOrWhiteSpace(descripcion) ? null : descripcion.Trim();
-        Estado = string.IsNullOrWhiteSpace(estado) ? "Activo" : estado.Trim();
+        Estado = estado;
         FechaCreacion = DateTime.UtcNow;
     }
 
@@ -48,7 +49,7 @@ public class Nodo
 
     public string? Descripcion { get; private set; }
 
-    public string Estado { get; private set; }
+    public EstadoNodo Estado { get; private set; }
 
     public DateTime FechaCreacion { get; private set; }
 
@@ -68,7 +69,7 @@ public class Nodo
         Inversor.Eliminar();
     }
 
-    public void ActualizarDatos(string codigo, string? descripcion, string estado)
+    public void ActualizarDatos(string codigo, string? descripcion, EstadoNodo estado)
     {
         ValidarCodigo(codigo);
         ValidarDescripcion(descripcion);
@@ -76,7 +77,7 @@ public class Nodo
 
         Codigo = codigo.Trim();
         Descripcion = string.IsNullOrWhiteSpace(descripcion) ? null : descripcion.Trim();
-        Estado = string.IsNullOrWhiteSpace(estado) ? "Activo" : estado.Trim();
+        Estado = estado;
     }
 
     private static void ValidarCodigo(string codigo)
@@ -103,12 +104,9 @@ public class Nodo
             throw new ArgumentException($"La descripción no puede superar los {DescripcionMaxLength} caracteres.", nameof(descripcion));
     }
 
-    private static void ValidarEstado(string estado)
+    private static void ValidarEstado(EstadoNodo estado)
     {
-        if (string.IsNullOrWhiteSpace(estado))
-            throw new ArgumentException("El estado del nodo es obligatorio.", nameof(estado));
-
-        if (estado.Trim().Length > EstadoMaxLength)
-            throw new ArgumentException($"El estado del nodo no puede superar los {EstadoMaxLength} caracteres.", nameof(estado));
+        if (!Enum.IsDefined(estado))
+            throw new ArgumentException("El estado del nodo no es válido.", nameof(estado));
     }
 }

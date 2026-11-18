@@ -91,7 +91,7 @@ else
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
                             data-bs-target="#@collapseId" aria-expanded="false" aria-controls="@collapseId">
                         <span class="fw-semibold me-2">@nodo.Codigo</span>
-                        <partial name="_EstadoBadge" model="nodo.Estado" />
+                        <partial name="_EstadoBadge" model="EstadoNodoOpciones.Texto(nodo.Estado)" />
                         <span class="text-muted small ms-2 d-none d-md-inline">
                             @(nodo.Inversor is null ? "Sin inversor" : $"{nodo.Inversor.Marca} {nodo.Inversor.Modelo}")
                         </span>

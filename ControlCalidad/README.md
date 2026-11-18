@@ -38,6 +38,7 @@ Requerimientos:
 | `req010_Login_OIDC` | Login OIDC con Keycloak local (Docker Compose), PKCE, RP-initiated logout, mapeo de roles y sesión distribuida sobre req012 | Implementado |
 | `req009_alertas` | Alertas por fallos en paneles: registro con historial en MySQL, pantalla `/Alertas` e indicador en vivo por SignalR (acceso sin sesion) | En progreso |
 | `req011_servidor_mcp_consultas` | Servidor MCP de solo lectura embebido en `SolarUY` para consultar parques, topologia, estado actual, historicos, alertas y tareas de mantenimiento desde Antigravity | En progreso |
+| `req014_estado_nodo_enum` | Estado tipado de Nodos con combo, etiqueta legible `En mantenimiento` y normalizacion de datos existentes | En progreso |
 
 Estados: **Planificado** (solo artefactos), **En progreso** (implementación
 iniciada) e **Implementado** (cerrado con tests y análisis estático).
@@ -53,6 +54,9 @@ Nota: req011 tiene build y tests en verde y el análisis de SonarQube ejecutado;
 queda en ERROR por deuda preexistente (cobertura nueva 0%, duplicación nueva 5,1% y 10
 hallazgos nuevos en `SolarUY.Simulador`, `RegistroAlertasService` y `alertas-indicador.js`),
 sin hallazgos en el código MCP. Queda pendiente la prueba manual en Antigravity.
+Nota: req014 tiene build, tests y migracion aplicada en verde; `prendido` se normalizo
+a `Activo` y el unico nodo con `EnFalla` se normalizo a `Inactivo`. Quedan pendientes
+el analisis de SonarQube y la prueba manual del combo y los badges.
 Nota: la adenda de graficas de req008 reutiliza Chart.js local y los historicos existentes;
 no agrega persistencia, migraciones ni librerias. Build y tests pasan; la prueba manual en
 navegador queda pendiente porque el daemon de Docker no estaba disponible en el entorno local.

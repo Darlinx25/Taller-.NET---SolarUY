@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SolarUY.Domain.Entities;
+using SolarUY.Domain.Enums;
 
 namespace SolarUY.Infrastructure.Persistence.Configurations;
 
@@ -8,7 +9,10 @@ public class NodoConfiguration : IEntityTypeConfiguration<Nodo>
 {
     public void Configure(EntityTypeBuilder<Nodo> builder)
     {
-        builder.ToTable("Nodos");
+        var estadosValidos = string.Join("', '", Enum.GetNames<EstadoNodo>());
+
+        builder.ToTable("Nodos", tabla =>
+            tabla.HasCheckConstraint("CK_Nodos_Estado", $"`Estado` IN ('{estadosValidos}')"));
 
         builder.HasKey(nodo => nodo.Id);
         builder.Property(nodo => nodo.Id).ValueGeneratedNever();
@@ -22,7 +26,8 @@ public class NodoConfiguration : IEntityTypeConfiguration<Nodo>
 
         builder.Property(nodo => nodo.Estado)
             .IsRequired()
-            .HasMaxLength(Nodo.EstadoMaxLength);
+            .HasMaxLength(Nodo.EstadoMaxLength)
+            .HasConversion<string>();
 
         builder.Property(nodo => nodo.FechaCreacion)
             .IsRequired();

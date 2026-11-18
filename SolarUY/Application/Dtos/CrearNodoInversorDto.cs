@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using SolarUY.Domain.Enums;
 
 namespace SolarUY.Application.Dtos;
 
@@ -19,10 +20,9 @@ public class CrearNodoInversorDto
     [Display(Name = "Descripción")]
     public string? Descripcion { get; set; }
 
-    [Required(ErrorMessage = "El estado del nodo es obligatorio.")]
-    [StringLength(50)]
+    [EnumDataType(typeof(EstadoNodo), ErrorMessage = "El estado del nodo no es válido.")]
     [Display(Name = "Estado")]
-    public string Estado { get; set; } = "Activo";
+    public EstadoNodo Estado { get; set; } = EstadoNodo.Activo;
 
     [Required(ErrorMessage = "La marca del inversor es obligatoria.")]
     [StringLength(100)]

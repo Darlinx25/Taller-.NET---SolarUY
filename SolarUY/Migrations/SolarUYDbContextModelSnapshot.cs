@@ -16,7 +16,7 @@ namespace SolarUY.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "9.0.9")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             modelBuilder.Entity("SolarUY.Domain.Entities.AlertaPanel", b =>
@@ -154,7 +154,10 @@ namespace SolarUY.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_Nodos_ParqueSolarId_Codigo");
 
-                    b.ToTable("Nodos", (string)null);
+                    b.ToTable("Nodos", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Nodos_Estado", "`Estado` IN ('Activo', 'Inactivo', 'EnMantenimiento')");
+                        });
                 });
 
             modelBuilder.Entity("SolarUY.Domain.Entities.Panel", b =>

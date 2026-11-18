@@ -1,4 +1,5 @@
 using System;
+using SolarUY.Domain.Enums;
 
 namespace SolarUY.Application.Dtos;
 
@@ -14,7 +15,7 @@ public class NodoDetalleDto
 
     public string? Descripcion { get; set; }
 
-    public string Estado { get; set; } = string.Empty;
+    public EstadoNodo Estado { get; set; } = EstadoNodo.Activo;
 
     public DateTime FechaCreacion { get; set; }
 

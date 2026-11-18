@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SolarUY.Application.Dtos;
 using SolarUY.Application.Services;
+using SolarUY.Domain.Enums;
 using SolarUY.Domain.Exceptions;
 using SolarUY.Models;
 
@@ -48,7 +49,8 @@ public class NodosController : Controller
 
         ViewBag.Parque = parque;
         ViewBag.ReturnUrl = returnUrl;
-        return View(new CrearNodoInversorDto { ParqueSolarId = parqueId, Estado = "Activo" });
+        CargarEstadosNodo();
+        return View(new CrearNodoInversorDto { ParqueSolarId = parqueId, Estado = EstadoNodo.Activo });
     }
 
     [HttpPost]
@@ -60,6 +62,7 @@ public class NodosController : Controller
             var parque = await _parqueSolarService.ObtenerParqueAsync(dto.ParqueSolarId, cancellationToken);
             ViewBag.Parque = parque;
             ViewBag.ReturnUrl = returnUrl;
+            CargarEstadosNodo();
             return View(dto);
         }
 
@@ -78,6 +81,7 @@ public class NodosController : Controller
             var parque = await _parqueSolarService.ObtenerParqueAsync(dto.ParqueSolarId, cancellationToken);
             ViewBag.Parque = parque;
             ViewBag.ReturnUrl = returnUrl;
+            CargarEstadosNodo();
             return View(dto);
         }
 
@@ -132,6 +136,7 @@ public class NodosController : Controller
 
         ViewBag.ParqueSolarNombre = nodo.ParqueSolarNombre;
         ViewBag.ReturnUrl = returnUrl;
+        CargarEstadosNodo();
         return View(dto);
     }
 
@@ -144,6 +149,7 @@ public class NodosController : Controller
             var nodo = await _nodoService.ObtenerNodoAsync(dto.Id, cancellationToken);
             ViewBag.ParqueSolarNombre = nodo?.ParqueSolarNombre;
             ViewBag.ReturnUrl = returnUrl;
+            CargarEstadosNodo();
             return View(dto);
         }
 
@@ -162,6 +168,7 @@ public class NodosController : Controller
             var nodo = await _nodoService.ObtenerNodoAsync(dto.Id, cancellationToken);
             ViewBag.ParqueSolarNombre = nodo?.ParqueSolarNombre;
             ViewBag.ReturnUrl = returnUrl;
+            CargarEstadosNodo();
             return View(dto);
         }
 
@@ -211,5 +218,10 @@ public class NodosController : Controller
         }
 
         return RedirectToAction(nameof(Index), new { parqueId = nodo.ParqueSolarId });
+    }
+
+    private void CargarEstadosNodo()
+    {
+        ViewBag.EstadosNodo = EstadoNodoOpciones.Obtener();
     }
 }

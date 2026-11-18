@@ -76,7 +76,7 @@ public class TopologiaSimulacionService : ITopologiaSimulacionService
         {
             NodoId = nodo.Id,
             CodigoNodo = nodo.Codigo,
-            Estado = nodo.Estado,
+            Estado = nodo.Estado.ToString(),
             PotenciaNominalInversorKW = nodo.Inversor.PotenciaNominalkW,
             Paneles = paneles
                 .Select(panel => new PanelSimulacionDto
