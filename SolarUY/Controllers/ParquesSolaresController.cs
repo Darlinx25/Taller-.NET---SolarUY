@@ -15,7 +15,7 @@ namespace SolarUY.Controllers;
 /// Casos de uso de la presentación para la gestión de parques solares.
 /// Solo invoca servicios de la capa Application: no contiene reglas de negocio.
 /// </summary>
-[Authorize(Roles = "Administrador")]
+[Authorize(Roles = "Administrador,Operador")]
 public class ParquesSolaresController : Controller
 {
     private readonly IParqueSolarService _parqueSolarService;
@@ -57,6 +57,7 @@ public class ParquesSolaresController : Controller
     /// Muestra el formulario de alta de parque solar.
     /// </summary>
     /// <returns>Vista con el formulario de alta.</returns>
+    [Authorize(Roles = "Administrador")]
     [HttpGet]
     public IActionResult Create()
     {
@@ -69,6 +70,7 @@ public class ParquesSolaresController : Controller
     /// <param name="dto">Datos del parque solar a registrar.</param>
     /// <param name="cancellationToken">Token de cancelación.</param>
     /// <returns>Redirección al listado o el formulario con los errores de validación.</returns>
+    [Authorize(Roles = "Administrador")]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(
@@ -137,6 +139,7 @@ public class ParquesSolaresController : Controller
     /// <param name="id">Identificador del parque solar.</param>
     /// <param name="cancellationToken">Token de cancelación.</param>
     /// <returns>Vista con el formulario de edición.</returns>
+    [Authorize(Roles = "Administrador")]
     [HttpGet]
     public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
     {
@@ -164,6 +167,7 @@ public class ParquesSolaresController : Controller
     /// <param name="dto">Datos del parque solar a actualizar.</param>
     /// <param name="cancellationToken">Token de cancelación.</param>
     /// <returns>Redirección al listado o el formulario con los errores de validación.</returns>
+    [Authorize(Roles = "Administrador")]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(
@@ -200,6 +204,7 @@ public class ParquesSolaresController : Controller
     /// <param name="id">Identificador del parque solar.</param>
     /// <param name="cancellationToken">Token de cancelación.</param>
     /// <returns>Vista de confirmación de baja.</returns>
+    [Authorize(Roles = "Administrador")]
     [HttpGet]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
@@ -214,6 +219,7 @@ public class ParquesSolaresController : Controller
     /// <param name="id">Identificador del parque solar a eliminar.</param>
     /// <param name="cancellationToken">Token de cancelación.</param>
     /// <returns>Redirección al listado de parques solares.</returns>
+    [Authorize(Roles = "Administrador")]
     [HttpPost]
     [ActionName(nameof(Delete))]
     [ValidateAntiForgeryToken]

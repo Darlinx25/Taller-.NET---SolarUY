@@ -48,7 +48,7 @@
                                   data-url="@Url.Action("CantidadActivas", "Alertas")">0</span>
                         </a>
                     </li>
-                    @if (User.IsInRole("Administrador"))
+                    @if (User.IsInRole("Administrador") || User.IsInRole("Operador"))
                     {
                         <li class="nav-item">
                             <a class="nav-link @(esParques ? "active" : "")" aria-current="@(esParques ? "page" : null)"

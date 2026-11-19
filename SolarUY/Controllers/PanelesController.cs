@@ -9,7 +9,7 @@ using SolarUY.Domain.Exceptions;
 
 namespace SolarUY.Controllers;
 
-[Authorize(Roles = "Administrador")]
+[Authorize(Roles = "Administrador,Operador")]
 public class PanelesController : Controller
 {
     private readonly IPanelService _panelService;
@@ -31,6 +31,7 @@ public class PanelesController : Controller
         return View(paneles);
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpGet]
     public async Task<IActionResult> Create(Guid nodoId, string? returnUrl, CancellationToken cancellationToken)
     {
@@ -41,6 +42,7 @@ public class PanelesController : Controller
         return View(new CrearPanelDto { NodoId = nodoId });
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CrearPanelDto dto, string? returnUrl, CancellationToken cancellationToken)
@@ -90,6 +92,7 @@ public class PanelesController : Controller
         return panel is null ? NotFound() : View(panel);
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpGet]
     public async Task<IActionResult> Edit(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
@@ -113,6 +116,7 @@ public class PanelesController : Controller
         });
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(EditarPanelDto dto, string? returnUrl, CancellationToken cancellationToken)
@@ -155,6 +159,7 @@ public class PanelesController : Controller
         return RedirectToAction(nameof(Index), new { nodoId = dto.NodoId });
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpGet]
     public async Task<IActionResult> Delete(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
@@ -163,6 +168,7 @@ public class PanelesController : Controller
         return panel is null ? NotFound() : View(panel);
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpPost]
     [ActionName(nameof(Delete))]
     [ValidateAntiForgeryToken]

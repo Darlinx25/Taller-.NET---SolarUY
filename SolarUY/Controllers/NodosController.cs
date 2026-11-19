@@ -11,7 +11,7 @@ using SolarUY.Models;
 
 namespace SolarUY.Controllers;
 
-[Authorize(Roles = "Administrador")]
+[Authorize(Roles = "Administrador,Operador")]
 public class NodosController : Controller
 {
     private readonly INodoService _nodoService;
@@ -40,6 +40,7 @@ public class NodosController : Controller
         return View(nodos);
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpGet]
     public async Task<IActionResult> Create(Guid parqueId, string? returnUrl, CancellationToken cancellationToken)
     {
@@ -53,6 +54,7 @@ public class NodosController : Controller
         return View(new CrearNodoInversorDto { ParqueSolarId = parqueId, Estado = EstadoNodo.Activo });
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CrearNodoInversorDto dto, string? returnUrl, CancellationToken cancellationToken)
@@ -113,6 +115,7 @@ public class NodosController : Controller
         return View(modelo);
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpGet]
     public async Task<IActionResult> Edit(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
@@ -140,6 +143,7 @@ public class NodosController : Controller
         return View(dto);
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(EditarNodoInversorDto dto, string? returnUrl, CancellationToken cancellationToken)
@@ -181,6 +185,7 @@ public class NodosController : Controller
         return RedirectToAction(nameof(Index), new { parqueId = dto.ParqueSolarId });
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpGet]
     public async Task<IActionResult> Delete(Guid id, string? returnUrl, CancellationToken cancellationToken)
     {
@@ -189,6 +194,7 @@ public class NodosController : Controller
         return nodo is null ? NotFound() : View(nodo);
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpPost]
     [ActionName(nameof(Delete))]
     [ValidateAntiForgeryToken]

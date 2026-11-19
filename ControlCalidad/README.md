@@ -39,6 +39,7 @@ Requerimientos:
 | `req009_alertas` | Alertas por fallos en paneles: registro con historial en MySQL, pantalla `/Alertas` e indicador en vivo por SignalR (acceso sin sesion) | En progreso |
 | `req011_servidor_mcp_consultas` | Servidor MCP de solo lectura embebido en `SolarUY` para consultar parques, topologia, estado actual, historicos, alertas y tareas de mantenimiento desde Antigravity | En progreso |
 | `req014_estado_nodo_enum` | Estado tipado de Nodos con combo, etiqueta legible `En mantenimiento` y normalizacion de datos existentes | En progreso |
+| `req015_operador_consulta_parques_nodos_paneles` | Consulta de solo lectura de parques, nodos e inversores y paneles para el rol Operador, reutilizando las pantallas del Administrador | En progreso |
 
 Estados: **Planificado** (solo artefactos), **En progreso** (implementación
 iniciada) e **Implementado** (cerrado con tests y análisis estático).
@@ -57,6 +58,9 @@ sin hallazgos en el código MCP. Queda pendiente la prueba manual en Antigravity
 Nota: req014 tiene build, tests y migracion aplicada en verde; `prendido` se normalizo
 a `Activo` y el unico nodo con `EnFalla` se normalizo a `Inactivo`. Quedan pendientes
 el analisis de SonarQube y la prueba manual del combo y los badges.
+Nota: req015 tiene build, tests, ArchUnitNET y prueba manual con `operador@solaruy.uy` y
+`admin@solaruy.uy` en verde; la autorizacion por accion y la UI de consulta ya estan
+implementadas. Queda pendiente el analisis de SonarQube.
 Nota: la adenda de graficas de req008 reutiliza Chart.js local y los historicos existentes;
 no agrega persistencia, migraciones ni librerias. Build y tests pasan; la prueba manual en
 navegador queda pendiente porque el daemon de Docker no estaba disponible en el entorno local.

@@ -1,5 +1,6 @@
 ﻿@{
     ViewData["Title"] = "Inicio";
+    var puedeGestionar = User.IsInRole("Administrador");
 }
 
 <div class="app-page-header">
@@ -20,14 +21,20 @@
         </div>
     </div>
 
-    @if (User.IsInRole("Administrador"))
+    @if (User.IsInRole("Administrador") || User.IsInRole("Operador"))
     {
         <div class="col-md-6 col-xl-3">
             <div class="card h-100 app-card-hover">
                 <div class="card-body d-flex flex-column">
                     <h2 class="h5">Parques solares</h2>
-                    <p class="text-muted flex-grow-1">Administrá parques, nodos, inversores y paneles.</p>
-                    <a class="btn btn-primary" asp-controller="ParquesSolares" asp-action="Index">Gestionar parques</a>
+                    <p class="text-muted flex-grow-1">
+                        @(puedeGestionar
+                            ? "Administrá parques, nodos, inversores y paneles."
+                            : "Consultá parques, nodos, inversores y paneles.")
+                    </p>
+                    <a class="btn btn-primary" asp-controller="ParquesSolares" asp-action="Index">
+                        @(puedeGestionar ? "Gestionar parques" : "Consultar parques")
+                    </a>
                 </div>
             </div>
         </div>

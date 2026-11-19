@@ -22,9 +22,9 @@
 | --- | --- | --- | --- | --- |
 | Seguridad | Login OIDC | Autenticacion externa OpenID Connect con Keycloak local, PKCE, RP-initiated logout, mapeo de roles y sesión distribuida | Publico | Listo |
 | Seguridad | Permisos | Control de roles (Administrador / Operador) mapeados desde Keycloak | Sistema | Listo |
-| Parques | Parques | Gestion CRUD de parques solares | Admin | Listo |
-| Parques | Nodos | Configuracion de nodos e inversores | Admin | Listo |
-| Parques | Paneles | Registro de paneles fotovoltaicos | Admin | Listo |
+| Parques | Parques | Gestion CRUD de parques solares y consulta de solo lectura para Operador | Admin / Operador (consulta) | Listo |
+| Parques | Nodos | Configuracion de nodos e inversores y consulta de solo lectura para Operador | Admin / Operador (consulta) | Listo |
+| Parques | Paneles | Registro de paneles fotovoltaicos y consulta de solo lectura para Operador | Admin / Operador (consulta) | Listo |
 | Mantenimiento | Tareas | Registro y seguimiento de tareas por panel | Admin | Listo |
 | Monitoreo | Dashboard | Topologia registrada, telemetria de energia en vivo via SignalR sin recarga y graficas de generacion, estado de paneles y tendencia de 7 dias | Todos | Listo |
 | Monitoreo | Alertas | Deteccion de fallos en paneles, con historial, pantalla e indicador en vivo | Todos | Listo |
